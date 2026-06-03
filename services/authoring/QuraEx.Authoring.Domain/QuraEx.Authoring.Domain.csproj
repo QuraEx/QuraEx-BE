@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- Domain depends only on BuildingBlocks primitives — no EF, no HTTP -->
+    <!-- TODO: switch to PackageReference after GitHub Packages write:packages PAT is set up -->
+    <ProjectReference Include="..\..\..\building-blocks\QuraEx.BuildingBlocks\QuraEx.BuildingBlocks.csproj" />
+  </ItemGroup>
+
+</Project>

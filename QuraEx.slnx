@@ -10,4 +10,11 @@
   <Folder Name="/gateway/">
     <Project Path="gateway/QuraEx.Gateway/QuraEx.Gateway.csproj" />
   </Folder>
+  <Folder Name="/services/" />
+  <Folder Name="/services/authoring/">
+    <Project Path="services/authoring/QuraEx.Authoring.Api/QuraEx.Authoring.Api.csproj" />
+    <Project Path="services/authoring/QuraEx.Authoring.Contracts/QuraEx.Authoring.Contracts.csproj" />
+    <Project Path="services/authoring/QuraEx.Authoring.Domain/QuraEx.Authoring.Domain.csproj" />
+    <Project Path="services/authoring/QuraEx.Authoring.Infrastructure/QuraEx.Authoring.Infrastructure.csproj" />
+  </Folder>
 </Solution>

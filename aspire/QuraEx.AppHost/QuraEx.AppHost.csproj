@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\gateway\QuraEx.Gateway\QuraEx.Gateway.csproj" />
+    <ProjectReference Include="..\..\services\authoring\QuraEx.Authoring.Api\QuraEx.Authoring.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

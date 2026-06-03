@@ -29,15 +29,14 @@ var gateway = builder
     .WithReference(redis)
     .WaitFor(rabbitmq);
 
-// Authoring — uncomment after Phase 5:
-// var authoring = builder
-//     .AddProject<Projects.QuraEx_Authoring_Api>("authoring")
-//     .WithReference(postgresAuthoring)
-//     .WithReference(rabbitmq)
-//     .WithReference(redis)
-//     .WaitFor(postgresAuthoring)
-//     .WaitFor(rabbitmq);
-//
-// _ = gateway.WithReference(authoring);
+var authoring = builder
+    .AddProject<Projects.QuraEx_Authoring_Api>("authoring")
+    .WithReference(postgresAuthoring)
+    .WithReference(rabbitmq)
+    .WithReference(redis)
+    .WaitFor(postgresAuthoring)
+    .WaitFor(rabbitmq);
+
+_ = gateway.WithReference(authoring);
 
 builder.Build().Run();

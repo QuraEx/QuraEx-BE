@@ -99,4 +99,10 @@ dotnet_diagnostic.SA1618.severity = none
 dotnet_diagnostic.SA1623.severity = none
 dotnet_diagnostic.SA1616.severity = none
 dotnet_diagnostic.SA1649.severity = none  # File name != type name — intentional for extension method files
+dotnet_diagnostic.SA1116.severity = none  # Multi-line param alignment — conflicts with modern formatter
+dotnet_diagnostic.SA1117.severity = none  # Param placement — conflicts with record declarations
+dotnet_diagnostic.SA1512.severity = none  # Single-line comment followed by blank line
+dotnet_diagnostic.SA1515.severity = none  # Single-line comment preceded by blank line
+dotnet_diagnostic.SA1413.severity = none  # Trailing comma — auto-generated migration files don't use it
+dotnet_diagnostic.S927.severity = none   # ct abbreviation for cancellationToken is idiomatic .NET
 dotnet_diagnostic.SA1629.severity = none
