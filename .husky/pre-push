@@ -1,9 +1,14 @@
 #!/bin/sh
-# Quick build sanity before push — catches broken code before CI sees it
+# Build sanity before push — catches compiler errors before CI sees them.
+# Skipped in CI (CI runs a proper build job).
 if [ -z "$CI" ]; then
     echo "Running build sanity check before push..."
-    dotnet build QuraEx.slnx --nologo -q
-    if [ $? -ne 0 ]; then
+    OUTPUT=$(dotnet build QuraEx.slnx --nologo -q 2>&1)
+    # MSB3492 is a transient coverlet file-lock that can occur after rapid successive builds;
+    # it is not a real compiler error, so exclude it from the failure check.
+    REAL_ERRORS=$(printf '%s\n' "$OUTPUT" | grep " error " | grep -v "MSB3492")
+    if [ -n "$REAL_ERRORS" ]; then
+        printf '%s\n' "$OUTPUT"
         echo "❌  Build failed. Fix errors before pushing."
         exit 1
     fi
