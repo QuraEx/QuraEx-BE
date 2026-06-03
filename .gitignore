@@ -65,3 +65,6 @@ desktop.ini
 
 # Aspire
 .aspire/
+
+# ClaudeKit / agent planning artifacts
+plans/
