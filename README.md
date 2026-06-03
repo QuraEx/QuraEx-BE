@@ -70,6 +70,9 @@ Open that URL. Wait until the Gateway and Authoring resources are running.
 If you see a Docker warning, Docker Desktop is usually stopped or still waking
 up. Start Docker Desktop, wait a minute, then rerun the command.
 
+> Prefer a fully containerized run (no .NET SDK, identical on every machine)?
+> See [Run Modes](#run-modes) → *Docker full stack*.
+
 ### Step 5: Verify the App is Alive
 
 Use the URLs shown in the Aspire dashboard. The ports can change between runs.
@@ -98,59 +101,6 @@ curl <gateway-url>/api/authoring/user-stories
 ```
 
 That `401` is expected and means auth is active.
-
-### Alternative: Run the Full Stack with Docker (no Aspire)
-
-Aspire (Step 4) is the best inner-loop experience — hot reload, debugging, the
-dashboard. But it runs the services as local projects, so behaviour can still
-drift between machines. When you want a fully containerized run that is
-identical on every machine (CI, demos, onboarding, "works on my machine"
-debugging), use the Docker stack instead.
-
-This mode builds an image per service from its `Dockerfile` and runs everything
-— gateway, authoring, Postgres, RabbitMQ, Redis — in containers. No .NET SDK
-required to *run* it.
-
-```sh
-# Build images and start the whole stack
-make up
-
-# Follow logs / stop / wipe data
-make logs
-make down
-make clean      # also removes volumes (destroys local data)
-```
-
-`make up` is a thin wrapper over:
-
-```sh
-docker compose -f docker-compose.yml -f docker-compose.app.yml up --build -d
-```
-
-The two files split responsibilities on purpose:
-
-- `docker-compose.yml` — backing infra only (use `make up-infra` to run just
-  this and start the services yourself from the IDE / Aspire).
-- `docker-compose.app.yml` — adds the containerized `gateway` + `authoring`.
-
-Default ports (override in `.env`, see `.env.example`):
-
-| Service | URL |
-|---------|-----|
-| Gateway (public entry) | http://localhost:8080 |
-| Authoring (direct) | http://localhost:8081 |
-| RabbitMQ management UI | http://localhost:15672 |
-
-Verify the same way as Step 5:
-
-```sh
-curl http://localhost:8080/api/authoring/health   # -> Healthy
-```
-
-This stack runs in the `Development` environment for parity with Aspire: EF
-migrations auto-apply on startup and the committed dev JWT public key is used.
-It is meant for local / CI parity — production deployment uses real secrets and
-a dedicated migration job, not this compose file.
 
 ### Step 6: Run Tests
 
@@ -184,10 +134,51 @@ Expected result:
 - EF says no model changes since the last migration.
 - Vulnerability scan reports no vulnerable packages.
 
-## Alternative: Run Authoring Without Aspire
+## Run Modes
 
-Use this only when you want to run one service manually. This does not start
-the Gateway.
+Four ways to run the backend locally. The Quickstart above uses **Aspire** — the
+others are for specific needs.
+
+| Mode | Command | When to use |
+|------|---------|-------------|
+| Aspire (default) | `dotnet run --project aspire/QuraEx.AppHost/QuraEx.AppHost.csproj` | Daily dev — hot reload, debugging, observability dashboard |
+| Docker full stack | `make up` | Identical environment on every machine — demos, onboarding, "works on my machine" debugging; no .NET SDK needed to run |
+| Infra only + IDE | `make up-infra` | Run services from your IDE/Aspire against containerized Postgres/RabbitMQ/Redis |
+| Single service | see below | Run one service manually, without the Gateway |
+
+### Docker full stack
+
+Builds an image per service and runs everything — gateway, authoring, Postgres,
+RabbitMQ, Redis — in containers.
+
+```sh
+make up          # build images + start the whole stack
+make logs        # follow logs
+make down        # stop and remove containers
+make clean       # also remove volumes (destroys local data)
+```
+
+`make up` wraps `docker compose -f docker-compose.yml -f docker-compose.app.yml up --build -d`.
+The two files split on purpose: `docker-compose.yml` is backing infra only;
+`docker-compose.app.yml` adds the containerized `gateway` + `authoring`.
+
+Default ports (override via `.env`, see `.env.example`):
+
+| Service | URL |
+|---------|-----|
+| Gateway (public entry) | http://localhost:8080 |
+| Authoring (direct) | http://localhost:8081 |
+| RabbitMQ management UI | http://localhost:15672 |
+
+```sh
+curl http://localhost:8080/api/authoring/health   # -> Healthy
+```
+
+This stack runs the `Development` environment for parity with Aspire (migrations
+auto-apply, committed dev JWT public key). It is local/CI parity only — see
+[`deploy/README.md`](./deploy/README.md) for production.
+
+### Single service (no Aspire, no Gateway)
 
 ```sh
 docker compose up -d postgres-authoring rabbitmq redis
@@ -200,10 +191,8 @@ dotnet run \
 Authoring uses the fixed local URL from its launch profile:
 
 ```sh
-curl http://localhost:5057/health
+curl http://localhost:5057/health   # -> HTTP 200 OK
 ```
-
-Expected result: HTTP `200 OK`.
 
 ## JWT Notes for Local API Calls
 
@@ -248,15 +237,19 @@ quraexv2/
 │   └── QuraEx.Gateway/                 # YARP reverse proxy and JWT validation
 ├── services/
 │   └── authoring/                      # Reference service implementation
-├── docs/
-│   └── database/                       # DBML and DB conventions
+├── deploy/                             # Production deploy (compose, runbook, droplet setup)
 ├── .github/
 │   └── workflows/ci.yml
 ├── Directory.Build.props
 ├── Directory.Packages.props
 ├── global.json
-└── docker-compose.yml
+├── Makefile                            # make up / up-infra / down / logs / clean
+├── docker-compose.yml                  # backing infra (Postgres/RabbitMQ/Redis)
+└── docker-compose.app.yml              # containerized gateway + authoring
 ```
+
+> Design docs (architecture, SRS, DB conventions) are kept **local-only** and
+> are not tracked in this public repo.
 
 ## Branch Flow
 
@@ -264,7 +257,9 @@ quraexv2/
 feature/<name> -> PR -> dev -> release -> main
 ```
 
-- `main` is protected and requires green CI plus review.
+- `main` is protected: the `CI Gate` status check must be green (strict, branch
+  up to date). No approval is required on this solo repo; force-push and branch
+  deletion are blocked.
 - `dev` is the integration branch.
 - Commits and PR titles follow Conventional Commits:
   `feat|fix|refactor|test|build|ci|perf|revert|style`.
@@ -276,5 +271,5 @@ service recipe in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Task Board
 
-See [docs/TASKS.md](./docs/TASKS.md) for remaining services, dependencies, and
-event contracts.
+Remaining services, dependencies, and event contracts are tracked in
+`docs/TASKS.md` (kept local-only, not in this public repo).
