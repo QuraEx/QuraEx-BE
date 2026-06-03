@@ -6,6 +6,14 @@ var postgresAuthoring = builder
     .AddPostgres("postgres-authoring")
     .WithPgAdmin();
 
+var postgresIdentity = builder
+    .AddPostgres("postgres-identity")
+    .WithPgAdmin();
+
+var postgresWorkspace = builder
+    .AddPostgres("postgres-workspace")
+    .WithPgAdmin();
+
 var rabbitmq = builder
     .AddRabbitMQ("rabbitmq")
     .WithManagementPlugin();
@@ -30,5 +38,25 @@ var authoring = builder
     .WaitFor(rabbitmq);
 
 _ = gateway.WithReference(authoring);
+
+var identity = builder
+    .AddProject<Projects.QuraEx_Identity_Api>("identity")
+    .WithReference(postgresIdentity)
+    .WithReference(rabbitmq)
+    .WithReference(redis)
+    .WaitFor(postgresIdentity)
+    .WaitFor(rabbitmq);
+
+_ = gateway.WithReference(identity);
+
+var workspace = builder
+    .AddProject<Projects.QuraEx_Workspace_Api>("workspace")
+    .WithReference(postgresWorkspace)
+    .WithReference(rabbitmq)
+    .WithReference(redis)
+    .WaitFor(postgresWorkspace)
+    .WaitFor(rabbitmq);
+
+_ = gateway.WithReference(workspace);
 
 await builder.Build().RunAsync();

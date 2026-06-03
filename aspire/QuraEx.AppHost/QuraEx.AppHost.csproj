@@ -9,6 +9,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\gateway\QuraEx.Gateway\QuraEx.Gateway.csproj" />
     <ProjectReference Include="..\..\services\authoring\QuraEx.Authoring.Api\QuraEx.Authoring.Api.csproj" />
+    <ProjectReference Include="..\..\services\identity\QuraEx.Identity.Api\QuraEx.Identity.Api.csproj" />
+    <ProjectReference Include="..\..\services\workspace\QuraEx.Workspace.Api\QuraEx.Workspace.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

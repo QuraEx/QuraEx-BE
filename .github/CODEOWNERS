@@ -22,12 +22,14 @@
 # Gateway — auth edge, lead review mandatory
 /gateway/                           @bavanchun
 
+# Identity — auth server, lead review mandatory
+/services/identity/                 @bavanchun
+
 # CI/DevOps — lead reviews pipeline changes
 /.github/                           @bavanchun
 
 # Services — per-team ownership (update as teams form)
 /services/authoring/                @bavanchun
-/services/identity/                 @bavanchun
 /services/workspace/                @bavanchun
 /services/test-artifact/            @bavanchun
 /services/ai-generation/            @bavanchun

@@ -27,6 +27,8 @@ jobs:
       building-blocks: ${{ steps.filter.outputs.building-blocks }}
       gateway: ${{ steps.filter.outputs.gateway }}
       authoring: ${{ steps.filter.outputs.authoring }}
+      identity: ${{ steps.filter.outputs.identity }}
+      workspace: ${{ steps.filter.outputs.workspace }}
       aspire: ${{ steps.filter.outputs.aspire }}
       any-cs: ${{ steps.filter.outputs.any-cs }}
     steps:
@@ -47,6 +49,18 @@ jobs:
               - '.github/workflows/ci.yml'
             authoring:
               - 'services/authoring/**'
+              - 'building-blocks/**'
+              - 'Directory.Build.props'
+              - 'Directory.Packages.props'
+              - '.github/workflows/ci.yml'
+            identity:
+              - 'services/identity/**'
+              - 'building-blocks/**'
+              - 'Directory.Build.props'
+              - 'Directory.Packages.props'
+              - '.github/workflows/ci.yml'
+            workspace:
+              - 'services/workspace/**'
               - 'building-blocks/**'
               - 'Directory.Build.props'
               - 'Directory.Packages.props'
@@ -82,7 +96,22 @@ jobs:
             project: services/authoring/QuraEx.Authoring.Api/QuraEx.Authoring.Api.csproj
             test-project: services/authoring/QuraEx.Authoring.Tests/QuraEx.Authoring.Tests.csproj
             infra-project: services/authoring/QuraEx.Authoring.Infrastructure
+            coverage-threshold: 60
             changed: ${{ needs.changes.outputs.authoring }}
+          - service: identity
+            project: services/identity/QuraEx.Identity.Api/QuraEx.Identity.Api.csproj
+            test-project: services/identity/QuraEx.Identity.Tests/QuraEx.Identity.Tests.csproj
+            infra-project: services/identity/QuraEx.Identity.Infrastructure
+            # Stub: only a /health smoke test until business logic lands. Raise to 60 with the first real feature.
+            coverage-threshold: 0
+            changed: ${{ needs.changes.outputs.identity }}
+          - service: workspace
+            project: services/workspace/QuraEx.Workspace.Api/QuraEx.Workspace.Api.csproj
+            test-project: services/workspace/QuraEx.Workspace.Tests/QuraEx.Workspace.Tests.csproj
+            infra-project: services/workspace/QuraEx.Workspace.Infrastructure
+            # Stub: only a /health smoke test until business logic lands. Raise to 60 with the first real feature.
+            coverage-threshold: 0
+            changed: ${{ needs.changes.outputs.workspace }}
 
     steps:
       - uses: actions/checkout@v4
@@ -115,7 +144,7 @@ jobs:
             -c Release \
             --no-restore \
             /p:CollectCoverage=true \
-            /p:Threshold=60 \
+            /p:Threshold=${{ matrix.coverage-threshold }} \
             /p:ThresholdType=line \
             /p:ThresholdStat=total \
             --collect:"XPlat Code Coverage" \
@@ -127,7 +156,7 @@ jobs:
         run: |
           dotnet ef migrations has-pending-model-changes \
             --project ${{ matrix.infra-project }} \
-            --startup-project services/authoring/QuraEx.Authoring.Api \
+            --startup-project ${{ matrix.project }} \
             --configuration Release \
             --no-build
 
@@ -282,6 +311,10 @@ jobs:
             dockerfile: gateway/QuraEx.Gateway/Dockerfile
           - name: authoring
             dockerfile: services/authoring/QuraEx.Authoring.Api/Dockerfile
+          - name: identity
+            dockerfile: services/identity/QuraEx.Identity.Api/Dockerfile
+          - name: workspace
+            dockerfile: services/workspace/QuraEx.Workspace.Api/Dockerfile
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3

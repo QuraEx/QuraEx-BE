@@ -88,36 +88,36 @@ Every schema change follows this sequence:
 
 ## Add a new service
 
-Copy the Authoring service as your template — it demonstrates the full 4-project layout,
-CQRS vertical slices, Outbox messaging, and Testcontainers integration tests.
+**The recommended way is to use the service scaffolder script.** This keeps all stubs
+consistent and authoritative.
 
-### Step-by-step
+### Step-by-step (script-first)
 
-**1. Copy and rename the projects**
-
-```sh
-cp -r services/authoring services/<svc>
-# Rename each project folder and .csproj to QuraEx.<Svc>.*
-# Update namespaces (find-replace QuraEx.Authoring → QuraEx.<Svc>)
-```
-
-**2. Add to solution**
+**1. Run the scaffolder**
 
 ```sh
-dotnet sln QuraEx.slnx add \
-  services/<svc>/QuraEx.<Svc>.Domain/QuraEx.<Svc>.Domain.csproj \
-  services/<svc>/QuraEx.<Svc>.Contracts/QuraEx.<Svc>.Contracts.csproj \
-  services/<svc>/QuraEx.<Svc>.Infrastructure/QuraEx.<Svc>.Infrastructure.csproj \
-  services/<svc>/QuraEx.<Svc>.Api/QuraEx.<Svc>.Api.csproj \
-  services/<svc>/QuraEx.<Svc>.Tests/QuraEx.<Svc>.Tests.csproj
+./scripts/new-service.sh <ServiceName>
+# e.g., ./scripts/new-service.sh MyFeature
 ```
 
-**3. Wire in AppHost**
+The script outputs the exact next steps, including:
+- `Projects.QuraEx_<Name>_Api` identifier for AppHost
+- Gateway route template (with `AuthorizationPolicy`)
+- `ci.yml` matrix row format
+- DBML anchor for the schema section
 
-In `aspire/QuraEx.AppHost/Program.cs`:
+**2. Wire in AppHost**
+
+Add the ProjectReferences to `aspire/QuraEx.AppHost/QuraEx.AppHost.csproj`:
+
+```xml
+<ProjectReference Include="..\..\services\<svc>\QuraEx.<Svc>.Api\QuraEx.<Svc>.Api.csproj" />
+```
+
+Then in `aspire/QuraEx.AppHost/Program.cs`, add per-service Postgres + messaging refs:
 
 ```csharp
-var postgres<Svc> = builder.AddPostgres("postgres-<svc>");
+var postgres<Svc> = builder.AddPostgres("postgres-<svc>").WithPgAdmin();
 
 var <svc> = builder
     .AddProject<Projects.QuraEx_<Svc>_Api>("<svc>")
@@ -127,19 +127,28 @@ var <svc> = builder
     .WaitFor(postgres<Svc>)
     .WaitFor(rabbitmq);
 
-// If other services call into this one:
-// gateway.WithReference(<svc>);
+_ = gateway.WithReference(<svc>);
 ```
 
-**4. Add Gateway route**
+Then rebuild AppHost to materialize the `Projects.*` type.
 
-In `gateway/QuraEx.Gateway/appsettings.json` → `ReverseProxy.Routes`:
+**3. Add Gateway route**
+
+In `gateway/QuraEx.Gateway/appsettings.json` → `ReverseProxy.Routes`, add routes for
+the main API endpoint and `/health`:
 
 ```json
 {
   "<svc>-route": {
     "ClusterId": "<svc>-cluster",
-    "Match": { "Path": "/api/<resource>/{**catch-all}" }
+    "AuthorizationPolicy": "default",
+    "Match": { "Path": "/api/<svc>/{**catch-all}" },
+    "Transforms": [ { "PathPattern": "/api/{**catch-all}" } ]
+  },
+  "<svc>-health-route": {
+    "ClusterId": "<svc>-cluster",
+    "Match": { "Path": "/api/<svc>/health" },
+    "Transforms": [ { "PathPattern": "/health" } ]
   }
 }
 ```
@@ -150,19 +159,61 @@ And in `Clusters`:
 {
   "<svc>-cluster": {
     "Destinations": {
-      "default": { "Address": "http://<svc>" }
+      "<svc>": { "Address": "http://<svc>" }
     }
   }
 }
 ```
 
+**Note:** If the new service is an auth server (like Identity), set `"AuthorizationPolicy": "anonymous"`
+on the main route to bypass authentication checks.
+
+**4. Update CI**
+
+In `.github/workflows/ci.yml`, add rows to the `build-test` matrix:
+
+```yaml
+- service: <svc>
+  project: services/<svc>/QuraEx.<Svc>.Api/QuraEx.<Svc>.Api.csproj
+  test-project: services/<svc>/QuraEx.<Svc>.Tests/QuraEx.<Svc>.Tests.csproj
+  infra-project: services/<svc>/QuraEx.<Svc>.Infrastructure
+  coverage-threshold: 0   # stub has only the /health smoke test; raise to 60 with the first real feature
+  changed: ${{ needs.changes.outputs.<svc> }}
+```
+
+And add to path-filter outputs (in the `changes` job):
+
+```yaml
+<svc>: ${{ steps.filter.outputs.<svc> }}
+```
+
+And filters section:
+
+```yaml
+<svc>:
+  - 'services/<svc>/**'
+  - 'building-blocks/**'
+  - 'Directory.Build.props'
+  - 'Directory.Packages.props'
+  - '.github/workflows/ci.yml'
+```
+
+And add to `publish-images` matrix (if the service has a `Dockerfile`):
+
+```yaml
+- name: <svc>
+  dockerfile: services/<svc>/QuraEx.<Svc>.Api/Dockerfile
+```
+
 **5. Update CODEOWNERS**
 
-In `.github/CODEOWNERS`:
+In `.github/CODEOWNERS`, add a line for the new service:
 
 ```
 /services/<svc>/    @your-github-handle
 ```
+
+For auth-critical services (like Identity), add a lead-review annotation above the entry.
 
 **6. Implement your DBML + entities**
 
@@ -171,8 +222,31 @@ then generate the domain entity and migration.
 
 **7. Write integration tests**
 
-Copy `QuraEx.Authoring.Tests/Integration/AuthoringApiFactory.cs` and `UserStoryApiTests.cs`.
-Rename, replace endpoint paths, and update the factory's DbContext type reference.
+The scaffolder creates stub test projects with `/health` endpoint assertions.
+Add domain-specific tests following the pattern in the generated `HealthEndpointTests.cs`.
+
+---
+
+## Add a new service (manual fallback)
+
+If you prefer to hand-craft the service from scratch (not recommended — the script is
+authoritative), copy the Authoring service as your template:
+
+```sh
+cp -r services/authoring services/<svc>
+# Rename each project folder and .csproj to QuraEx.<Svc>.*
+# Update namespaces (find-replace QuraEx.Authoring → QuraEx.<Svc>)
+dotnet sln QuraEx.slnx add \
+  services/<svc>/QuraEx.<Svc>.Domain/QuraEx.<Svc>.Domain.csproj \
+  services/<svc>/QuraEx.<Svc>.Contracts/QuraEx.<Svc>.Contracts.csproj \
+  services/<svc>/QuraEx.<Svc>.Infrastructure/QuraEx.<Svc>.Infrastructure.csproj \
+  services/<svc>/QuraEx.<Svc>.Api/QuraEx.<Svc>.Api.csproj \
+  services/<svc>/QuraEx.<Svc>.Tests/QuraEx.<Svc>.Tests.csproj
+```
+
+Then follow steps 2–7 above. **Always regenerate, never hand-patch** — if the
+scaffolder output drifts from reality, fix the template in `scripts/new-service.sh` and
+regenerate the service, rather than manually patching the output.
 
 ---
 
@@ -180,14 +254,14 @@ Rename, replace endpoint paths, and update the factory's DbContext type referenc
 
 ```sh
 # Start infrastructure
-docker compose up -d postgres-authoring rabbitmq redis
+docker compose up -d postgres-<svc> rabbitmq redis
 
 # Run the service (set connection strings via user-secrets or env vars)
-dotnet user-secrets set "ConnectionStrings:postgres-authoring" \
-  "Host=localhost;Database=authoring;Username=postgres;Password=postgres" \
-  --project services/authoring/QuraEx.Authoring.Api
+dotnet user-secrets set "ConnectionStrings:postgres-<svc>" \
+  "Host=localhost;Database=<svc>;Username=postgres;Password=postgres" \
+  --project services/<svc>/QuraEx.<Svc>.Api
 
-dotnet run --project services/authoring/QuraEx.Authoring.Api
+dotnet run --project services/<svc>/QuraEx.<Svc>.Api
 ```
 
 ---
