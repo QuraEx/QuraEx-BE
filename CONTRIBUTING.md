@@ -7,16 +7,17 @@
 git clone git@github.com:bavanchun/QuraEx-BE.git
 cd QuraEx-BE/quraexv2
 
-# 2. Set GitHub Packages token (needed before dotnet restore)
-export GITHUB_PACKAGES_TOKEN=ghp_YOUR_PAT_HERE   # read:packages scope
-
-# 3. Restore — installs Husky hooks automatically
+# 2. Restore — installs Husky hooks automatically
 dotnet tool restore
-dotnet restore
+dotnet restore QuraEx.slnx
 
-# 4. Verify hooks are wired
+# 3. Verify hooks are wired
 cat .husky/pre-commit   # should show gitleaks + dotnet format checks
 ```
+
+GitHub Packages token is only needed when consuming published `QuraEx.*`
+packages from another repository. The current workspace restores local QuraEx
+projects from source.
 
 ---
 
