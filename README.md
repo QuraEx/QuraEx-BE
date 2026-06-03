@@ -303,8 +303,8 @@ quraexv2/
 └── docker-compose.override.yml         # app services (auto-merged by docker compose up)
 ```
 
-> Design docs (architecture, SRS, DB conventions) are kept **local-only** and
-> are not tracked in this public repo.
+> Design docs (architecture, SRS, DB conventions, DBML, task board) live in
+> [`docs/`](./docs/) and are tracked in the repo — see [Documentation](#documentation).
 
 ## Branch Flow
 
@@ -326,5 +326,23 @@ service recipe in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Task Board
 
-Remaining services, dependencies, and event contracts are tracked in
-`docs/TASKS.md` (kept local-only, not in this public repo).
+Remaining services, owners, build order, dependencies, and event contracts are
+tracked in [`docs/TASKS.md`](./docs/TASKS.md). Claim a service there before starting.
+
+## Documentation
+
+Everything a teammate needs lives in the repo. Read in this order:
+
+| # | Doc | Read it to… |
+|---|-----|-------------|
+| 1 | This README | Get the stack running locally (Aspire or Docker). |
+| 2 | [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Learn commit/PR rules, the 7-step DB flow, and how to scaffold a new service. |
+| 3 | [`docs/TASKS.md`](./docs/TASKS.md) | Pick a service to build — owners, build order, event contracts. |
+| 4 | [`docs/database/conventions.md`](./docs/database/conventions.md) | Follow the authoritative DB rules (naming, soft-delete, outbox) — same for all services. |
+| 5 | [`docs/database/quraex.dbml`](./docs/database/quraex.dbml) | The master schema (source of truth). Render at [dbdiagram.io](https://dbdiagram.io). |
+| 6 | [`docs/QuraEx_Architecture.md`](./docs/QuraEx_Architecture.md) | Understand the system design and service boundaries. |
+| 7 | [`docs/QuraEx_SRS.md`](./docs/QuraEx_SRS.md) | Understand product requirements and scope. |
+| — | [`DOTENVX_QUICK_START.md`](./DOTENVX_QUICK_START.md) | Set up encrypted secrets for the Docker stack. |
+| — | [`deploy/README.md`](./deploy/README.md) | Production deploy (droplet + Cloudflare Tunnel). |
+
+**New teammate? Start here:** README §Quickstart → `CONTRIBUTING.md` → claim a service in `docs/TASKS.md` → build it following `docs/database/conventions.md`.
