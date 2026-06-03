@@ -75,9 +75,6 @@ plans/
 # Claude Core
 .claude/
 
-# Project docs — kept local (design/SRS/architecture), not tracked in the public repo
-docs/
-
 # Production deploy secrets (templates *.example stay tracked)
 deploy/.env
 deploy/config/*.Production.json

@@ -1,0 +1,560 @@
+// QuraEx v2 — Master DBML (source of truth for all 8 service schemas)
+// Render: paste into https://dbdiagram.io  (or dbml CLI -> SVG/PNG)
+//
+// CONVENTIONS (see conventions.md):
+//  - Stack: .NET 10. PostgreSQL, snake_case. PK = id uuid (UUIDv7, Guid.CreateVersion7()). Mongo (Notification) = camelCase.
+//  - Enums physically stored as varchar via EF HasConversion<string>() (Enum blocks below
+//    document allowed values; they are NOT Postgres native enum types).
+//  - Soft-delete deleted_at applies ONLY to ISoftDeletable entities (opt-in marker); infra
+//    tables (outbox/processed/snapshot) are EXCLUDED. Unique cols → partial index WHERE deleted_at IS NULL.
+//  - EVERY *_outbox_message carries: seq bigserial (ordering), attempt_count, last_error (shown on
+//    authoring_outbox_message as the canonical example; all others mirror it). Relay = MassTransit Transactional Outbox.
+//  - "encrypted"/secret columns use envelope encryption (KMS/Key Vault DEK); key never in repo/config.
+//  - citext columns require HasPostgresExtension("citext"). UUIDv7 needs .NET 10.
+//  - Audit: created_at/updated_at on every business table; created_by/updated_by on aggregates.
+//  - Soft-delete: deleted_at (opt-in via ISoftDeletable; infra tables excluded). Unique cols → partial index WHERE deleted_at IS NULL.
+//  - Concurrency: xmin system column used as EF concurrency token (no physical column).
+//  - DATABASE-PER-SERVICE: cross-service ids (user_id, project_id, story_id...) are BARE UUID refs.
+//    They are intentionally NOT modelled as DBML Ref (no cross-service FK). Sync via events.
+//  - outbox_message on every producer; processed_message on every consumer; *_snapshot = read-models.
+
+//======================================================================
+// SERVICE 1 — IDENTITY  (PostgreSQL)  Authentication: ASP.NET Core Identity + OpenIddict (OIDC)
+//======================================================================
+Table app_user {
+  id uuid [pk, note: 'UUIDv7']
+  email citext [unique, not null, note: 'normalized unique']
+  email_confirmed boolean [not null, default: false]
+  password_hash text [note: 'Argon2id']
+  display_name varchar
+  status varchar [not null, note: 'ACTIVE|LOCKED|DISABLED']
+  security_stamp varchar
+  two_factor_enabled boolean [not null, default: false]
+  lockout_end timestamptz
+  access_failed_count int [not null, default: 0]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  created_by uuid
+  updated_by uuid
+  deleted_at timestamptz [note: 'soft-delete; partial unique on email WHERE deleted_at IS NULL']
+}
+Table role {
+  id uuid [pk]
+  name varchar [unique, not null, note: 'SYSTEM_ADMIN|USER']
+  normalized_name varchar [unique, not null]
+}
+Table user_role {
+  user_id uuid [pk]
+  role_id uuid [pk]
+}
+Table user_login {
+  id uuid [pk]
+  user_id uuid [not null]
+  login_provider varchar [not null, note: 'Google|GitHub']
+  provider_key varchar [not null]
+  provider_display_name varchar
+}
+Table user_mfa {
+  id uuid [pk]
+  user_id uuid [not null]
+  type varchar [not null, note: 'TOTP|EMAIL']
+  secret text [note: 'encrypted']
+  enabled boolean [not null, default: false]
+  created_at timestamptz [not null]
+}
+// OpenIddict EF stores (token server)
+Table openiddict_application {
+  id uuid [pk]
+  client_id varchar [unique, not null]
+  client_secret text [note: 'hashed']
+  display_name varchar
+  permissions text [note: 'json']
+  redirect_uris text [note: 'json']
+}
+Table openiddict_authorization {
+  id uuid [pk]
+  application_id uuid [not null]
+  subject uuid [note: 'app_user id']
+  status varchar
+  scopes text [note: 'json']
+}
+Table openiddict_scope {
+  id uuid [pk]
+  name varchar [unique, not null]
+  resources text [note: 'json']
+}
+Table openiddict_token {
+  id uuid [pk]
+  application_id uuid [not null]
+  authorization_id uuid
+  subject uuid [note: 'app_user id']
+  type varchar [note: 'access|refresh']
+  status varchar
+  expiration timestamptz
+}
+Table identity_outbox_message {
+  id uuid [pk]
+  type varchar [not null]
+  payload json [note: 'jsonb']
+  occurred_at timestamptz [not null]
+  processed_at timestamptz [note: 'null until published']
+}
+Ref: user_role.user_id > app_user.id
+Ref: user_role.role_id > role.id
+Ref: user_login.user_id > app_user.id
+Ref: user_mfa.user_id > app_user.id
+Ref: openiddict_authorization.application_id > openiddict_application.id
+Ref: openiddict_token.application_id > openiddict_application.id
+Ref: openiddict_token.authorization_id > openiddict_authorization.id
+TableGroup "1 · Identity (PostgreSQL)" {
+  app_user
+  role
+  user_role
+  user_login
+  user_mfa
+  openiddict_application
+  openiddict_authorization
+  openiddict_scope
+  openiddict_token
+  identity_outbox_message
+}
+
+//======================================================================
+// SERVICE 2 — WORKSPACE  (PostgreSQL)  Authorization: project/workspace membership
+//======================================================================
+Table workspace {
+  id uuid [pk, note: 'UUIDv7']
+  name varchar [not null]
+  owner_user_id uuid [not null, note: 'ref Identity.app_user']
+  type varchar [not null, note: 'PERSONAL|TEAM']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  created_by uuid
+  updated_by uuid
+  deleted_at timestamptz
+}
+Table project {
+  id uuid [pk]
+  workspace_id uuid [not null]
+  name varchar [not null]
+  project_key varchar [unique, not null, note: 'partial unique WHERE deleted_at IS NULL']
+  description text
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  deleted_at timestamptz
+}
+Table workspace_member {
+  id uuid [pk]
+  workspace_id uuid [not null]
+  user_id uuid [not null, note: 'ref Identity.app_user']
+  role varchar [not null, note: 'OWNER|ADMIN|MEMBER']
+  created_at timestamptz [not null]
+}
+Table project_member {
+  id uuid [pk]
+  project_id uuid [not null]
+  user_id uuid [not null, note: 'ref Identity.app_user']
+  role varchar [not null, note: 'EDITOR|VIEWER']
+  created_at timestamptz [not null]
+}
+Table invitation {
+  id uuid [pk]
+  project_id uuid [not null]
+  email citext [not null]
+  role varchar [not null, note: 'EDITOR|VIEWER role granted on accept']
+  token_hash text [not null, note: 'store hash only']
+  status varchar [not null, note: 'PENDING|ACCEPTED|EXPIRED']
+  expires_at timestamptz [not null]
+  created_at timestamptz [not null]
+}
+Table workspace_outbox_message {
+  id uuid [pk]
+  type varchar [not null]
+  payload json
+  occurred_at timestamptz [not null]
+  processed_at timestamptz
+}
+Ref: project.workspace_id > workspace.id
+Ref: workspace_member.workspace_id > workspace.id
+Ref: project_member.project_id > project.id
+Ref: invitation.project_id > project.id
+TableGroup "2 · Workspace (PostgreSQL)" {
+  workspace
+  project
+  workspace_member
+  project_member
+  invitation
+  workspace_outbox_message
+}
+
+//======================================================================
+// SERVICE 3 — AUTHORING  (PostgreSQL)  user story, AC, business rule  [GOLD-STANDARD service]
+//======================================================================
+Table user_story {
+  id uuid [pk, note: 'UUIDv7']
+  project_id uuid [not null, note: 'ref Workspace.project']
+  title varchar [not null]
+  as_a text
+  i_want_to text
+  so_that text
+  description text
+  authoring_status varchar [not null, note: 'DRAFT|READY|APPROVED']
+  external_ref varchar [note: 'Jira key, nullable']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  created_by uuid
+  updated_by uuid
+  deleted_at timestamptz
+}
+Table acceptance_criteria {
+  id uuid [pk]
+  user_story_id uuid [not null]
+  parent_id uuid [note: 'nullable, hierarchical self-ref']
+  content text [not null]
+  order_no int [not null, default: 0]
+  completed boolean [not null, default: false]
+  created_at timestamptz [not null]
+  deleted_at timestamptz
+}
+Table business_rule {
+  id uuid [pk]
+  user_story_id uuid [not null]
+  content text [not null]
+  created_at timestamptz [not null]
+  deleted_at timestamptz
+}
+Table membership_snapshot {
+  project_id uuid [pk, note: 'read-model from Workspace events']
+  user_id uuid [pk]
+  role varchar [not null]
+  updated_at timestamptz [not null]
+}
+Table authoring_outbox_message {
+  id uuid [pk]
+  seq bigint [increment, note: 'bigserial — relay ordering']
+  type varchar [not null]
+  payload json
+  occurred_at timestamptz [not null]
+  processed_at timestamptz
+  attempt_count int [not null, default: 0]
+  last_error text [note: 'nullable; poison-message diagnostics']
+}
+Table authoring_processed_message {
+  message_id uuid [pk, note: 'idempotency']
+  processed_at timestamptz [not null]
+}
+Ref: acceptance_criteria.user_story_id > user_story.id
+Ref: business_rule.user_story_id > user_story.id
+Ref: acceptance_criteria.parent_id > acceptance_criteria.id
+TableGroup "3 · Authoring (PostgreSQL)" {
+  user_story
+  acceptance_criteria
+  business_rule
+  membership_snapshot
+  authoring_outbox_message
+  authoring_processed_message
+}
+
+//======================================================================
+// SERVICE 4 — TESTARTIFACT  (PostgreSQL)  ISTQB-correct test artifacts
+//======================================================================
+Table test_case {
+  id uuid [pk, note: 'UUIDv7']
+  story_id uuid [not null, note: 'ref Authoring.user_story']
+  ac_id uuid [note: 'nullable ref Authoring.acceptance_criteria']
+  title varchar [not null]
+  preconditions text
+  steps text
+  expected_result text
+  polarity varchar [not null, note: 'POSITIVE|NEGATIVE']
+  design_technique varchar [note: 'BVA|EP|DECISION_TABLE|STATE_TRANSITION|...']
+  priority varchar [not null, note: 'CRITICAL|HIGH|MEDIUM|LOW']
+  lifecycle_status varchar [not null, note: 'DRAFT|REVIEW|APPROVED|DEPRECATED']
+  generated_by_ai boolean [not null, default: false]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  created_by uuid
+  deleted_at timestamptz
+}
+Table test_suite {
+  id uuid [pk]
+  project_id uuid [not null]
+  name varchar [not null]
+  description text
+  created_at timestamptz [not null]
+  deleted_at timestamptz
+}
+Table test_suite_item {
+  id uuid [pk]
+  suite_id uuid [not null]
+  test_case_id uuid [not null]
+  order_no int [not null, default: 0]
+}
+Table test_plan {
+  id uuid [pk]
+  project_id uuid [not null]
+  name varchar [not null]
+  description text [note: 'project-level strategy doc (scope/objective/risk)']
+  created_at timestamptz [not null]
+  deleted_at timestamptz
+}
+Table test_run {
+  id uuid [pk]
+  suite_id uuid [not null]
+  status varchar [not null, note: 'PLANNED|IN_PROGRESS|COMPLETED|ABORTED']
+  mode varchar [not null, note: 'MANUAL|AUTOMATED']
+  started_at timestamptz
+  finished_at timestamptz
+  triggered_by uuid
+}
+Table test_run_result {
+  id uuid [pk]
+  run_id uuid [not null]
+  test_case_id uuid [not null]
+  result varchar [not null, note: 'PASSED|FAILED|BLOCKED|SKIPPED|NOT_RUN|IN_PROGRESS']
+  notes text
+  executed_at timestamptz
+}
+Table defect {
+  id uuid [pk]
+  run_result_id uuid [not null]
+  title varchar [not null]
+  description text
+  severity varchar [not null, note: 'BLOCKER|CRITICAL|MAJOR|MINOR']
+  status varchar [not null, note: 'OPEN|IN_PROGRESS|RESOLVED|CLOSED']
+  external_ref varchar [note: 'Jira key']
+  created_at timestamptz [not null]
+}
+Table story_snapshot {
+  story_id uuid [pk, note: 'read-model from Authoring events']
+  project_id uuid [not null]
+  title varchar
+  updated_at timestamptz [not null]
+}
+Table testartifact_outbox_message {
+  id uuid [pk]
+  type varchar [not null]
+  payload json
+  occurred_at timestamptz [not null]
+  processed_at timestamptz
+}
+Table testartifact_processed_message {
+  message_id uuid [pk]
+  processed_at timestamptz [not null]
+}
+Ref: test_suite_item.suite_id > test_suite.id
+Ref: test_suite_item.test_case_id > test_case.id
+Ref: test_run.suite_id > test_suite.id
+Ref: test_run_result.run_id > test_run.id
+Ref: test_run_result.test_case_id > test_case.id
+Ref: defect.run_result_id > test_run_result.id
+// NOTE: test_case.story_id is NOT a hard ref to story_snapshot (read-model, eventually consistent).
+TableGroup "4 · TestArtifact (PostgreSQL)" {
+  test_case
+  test_suite
+  test_suite_item
+  test_plan
+  test_run
+  test_run_result
+  defect
+  story_snapshot
+  testartifact_outbox_message
+  testartifact_processed_message
+}
+
+//======================================================================
+// SERVICE 5 — AI GENERATION  (PostgreSQL + Redis)  Saga orchestrator + LLM router
+//======================================================================
+Table generation_job {
+  id uuid [pk, note: 'UUIDv7']
+  story_id uuid [not null, note: 'ref Authoring']
+  project_id uuid [not null, note: 'ref Workspace']
+  job_type varchar [not null, note: 'REFINE|AC|TC']
+  status varchar [not null, note: 'PENDING|RUNNING|COMPLETED|FAILED']
+  llm_source varchar [note: 'SELF_HOST|OPENAI|GEMINI|CLAUDE']
+  model varchar
+  error_message text
+  created_at timestamptz [not null]
+  finished_at timestamptz
+}
+Table llm_provider_config {
+  id uuid [pk]
+  project_id uuid [not null, note: 'ref Workspace; selects config by project_id']
+  preferred_source varchar [not null]
+  model varchar
+  temperature numeric
+  max_tokens int
+  updated_at timestamptz [not null]
+}
+Table ai_saga_state {
+  correlation_id uuid [pk, note: 'MassTransit saga instance']
+  current_state varchar [not null]
+  data json
+  updated_at timestamptz [not null]
+}
+Table ai_outbox_message {
+  id uuid [pk]
+  type varchar [not null]
+  payload json
+  occurred_at timestamptz [not null]
+  processed_at timestamptz
+}
+Table ai_processed_message {
+  message_id uuid [pk, note: 'idempotency; saga consumes reply events']
+  processed_at timestamptz [not null]
+}
+TableGroup "5 · AI Generation (PostgreSQL + Redis)" {
+  generation_job
+  llm_provider_config
+  ai_saga_state
+  ai_outbox_message
+  ai_processed_message
+}
+
+//======================================================================
+// SERVICE 6 — EXECUTION  (PostgreSQL + Object storage/MinIO)  Playwright runner
+//======================================================================
+Table exec_run {
+  id uuid [pk, note: 'UUIDv7']
+  test_run_id uuid [not null, note: 'ref TestArtifact.test_run (ties results back)']
+  suite_id uuid [not null, note: 'ref TestArtifact.test_suite']
+  environment varchar
+  status varchar [not null, note: 'PENDING|RUNNING|COMPLETED|FAILED']
+  triggered_by uuid
+  started_at timestamptz
+  finished_at timestamptz
+}
+Table exec_result {
+  id uuid [pk]
+  run_id uuid [not null]
+  test_case_id uuid [not null, note: 'ref TestArtifact']
+  status varchar [not null, note: 'PASSED|FAILED|BLOCKED']
+  duration_ms int
+  error_message text
+}
+Table exec_artifact {
+  id uuid [pk]
+  result_id uuid [not null]
+  type varchar [not null, note: 'SCREENSHOT|VIDEO|TRACE|LOG']
+  storage_path text [not null, note: 'MinIO object key; DB stores path only']
+  created_at timestamptz [not null]
+}
+Table test_script {
+  id uuid [pk]
+  test_case_id uuid [not null, note: 'ref TestArtifact']
+  framework varchar [not null, note: 'PLAYWRIGHT']
+  script_content text
+  generated_by_ai boolean [not null, default: false]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+Table execution_outbox_message {
+  id uuid [pk]
+  type varchar [not null]
+  payload json
+  occurred_at timestamptz [not null]
+  processed_at timestamptz
+}
+Table execution_processed_message {
+  message_id uuid [pk, note: 'consumes RunRequested']
+  processed_at timestamptz [not null]
+}
+Ref: exec_result.run_id > exec_run.id
+Ref: exec_artifact.result_id > exec_result.id
+TableGroup "6 · Execution (PostgreSQL + MinIO)" {
+  exec_run
+  exec_result
+  exec_artifact
+  test_script
+  execution_outbox_message
+  execution_processed_message
+}
+
+//======================================================================
+// SERVICE 7 — INTEGRATION (JIRA)  (PostgreSQL)  Anti-Corruption Layer + 2-way sync
+//======================================================================
+Table jira_connection {
+  id uuid [pk, note: 'UUIDv7']
+  project_id uuid [not null, note: 'ref Workspace']
+  oauth_token text [note: 'encrypted']
+  refresh_token text [note: 'encrypted']
+  jira_site_id varchar
+  status varchar [not null, note: 'CONNECTED|EXPIRED|REVOKED']
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+}
+Table external_link {
+  id uuid [pk]
+  project_id uuid [not null, note: 'owner, provider-agnostic']
+  provider varchar [not null, note: 'JIRA']
+  internal_type varchar [not null, note: 'STORY|TEST_CASE|DEFECT']
+  internal_id uuid [not null]
+  external_id varchar
+  external_key varchar
+  sync_status varchar
+  last_synced_at timestamptz
+}
+Table outbound_sync_job {
+  id uuid [pk]
+  external_link_id uuid [not null]
+  payload json
+  status varchar [not null, note: 'PENDING|SENT|FAILED']
+  retry_count int [not null, default: 0]
+  created_at timestamptz [not null]
+}
+Table processed_webhook {
+  event_id varchar [pk, note: 'inbound dedup']
+  received_at timestamptz [not null]
+}
+Table integration_saga_state {
+  correlation_id uuid [pk, note: 'outbound saga']
+  current_state varchar [not null]
+  data json
+  updated_at timestamptz [not null]
+}
+Table integration_outbox_message {
+  id uuid [pk]
+  type varchar [not null]
+  payload json
+  occurred_at timestamptz [not null]
+  processed_at timestamptz
+}
+Ref: outbound_sync_job.external_link_id > external_link.id
+TableGroup "7 · Integration/Jira (PostgreSQL)" {
+  jira_connection
+  external_link
+  outbound_sync_job
+  processed_webhook
+  integration_saga_state
+  integration_outbox_message
+}
+
+//======================================================================
+// SERVICE 8 — NOTIFICATION  (MongoDB)  camelCase collections (documented as tables)
+//======================================================================
+Table notifications {
+  _id varchar [pk, note: 'ObjectId']
+  userId uuid [not null, note: 'ref Identity.app_user']
+  type varchar [not null]
+  payload json [note: 'flexible document']
+  channel varchar [not null, note: 'IN_APP|EMAIL|PUSH']
+  status varchar [not null, note: 'PENDING|SENT|FAILED']
+  read boolean [not null, default: false]
+  createdAt timestamptz [not null]
+}
+Table notification_preferences {
+  _id varchar [pk, note: 'ObjectId']
+  userId uuid [not null]
+  type varchar [not null]
+  emailEnabled boolean [not null, default: true]
+  pushEnabled boolean [not null, default: false]
+}
+Table notification_processed_messages {
+  messageId varchar [pk, note: 'idempotency']
+  processedAt timestamptz [not null]
+}
+TableGroup "8 · Notification (MongoDB)" {
+  notifications
+  notification_preferences
+  notification_processed_messages
+}
