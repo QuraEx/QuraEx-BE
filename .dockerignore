@@ -1,0 +1,33 @@
+# Docker build context = repository root (services use cross-directory project
+# references). Exclude everything that must not leak into image layers or that
+# would invalidate the restore cache: build outputs, VCS, IDE, local artifacts.
+
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.idea/
+
+.git/
+.github/
+.gitignore
+
+# Local planning / docs artifacts — never needed inside an image
+plans/
+docs/
+
+# Node / tooling caches that may appear at root
+**/node_modules/
+
+# Local environment + secrets (env values are injected via compose, not baked in)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Test results / coverage
+coverage/
+**/TestResults/
+**/*.trx
+
+# OS noise
+**/.DS_Store

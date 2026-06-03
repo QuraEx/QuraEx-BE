@@ -99,6 +99,59 @@ curl <gateway-url>/api/authoring/user-stories
 
 That `401` is expected and means auth is active.
 
+### Alternative: Run the Full Stack with Docker (no Aspire)
+
+Aspire (Step 4) is the best inner-loop experience — hot reload, debugging, the
+dashboard. But it runs the services as local projects, so behaviour can still
+drift between machines. When you want a fully containerized run that is
+identical on every machine (CI, demos, onboarding, "works on my machine"
+debugging), use the Docker stack instead.
+
+This mode builds an image per service from its `Dockerfile` and runs everything
+— gateway, authoring, Postgres, RabbitMQ, Redis — in containers. No .NET SDK
+required to *run* it.
+
+```sh
+# Build images and start the whole stack
+make up
+
+# Follow logs / stop / wipe data
+make logs
+make down
+make clean      # also removes volumes (destroys local data)
+```
+
+`make up` is a thin wrapper over:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.app.yml up --build -d
+```
+
+The two files split responsibilities on purpose:
+
+- `docker-compose.yml` — backing infra only (use `make up-infra` to run just
+  this and start the services yourself from the IDE / Aspire).
+- `docker-compose.app.yml` — adds the containerized `gateway` + `authoring`.
+
+Default ports (override in `.env`, see `.env.example`):
+
+| Service | URL |
+|---------|-----|
+| Gateway (public entry) | http://localhost:8080 |
+| Authoring (direct) | http://localhost:8081 |
+| RabbitMQ management UI | http://localhost:15672 |
+
+Verify the same way as Step 5:
+
+```sh
+curl http://localhost:8080/api/authoring/health   # -> Healthy
+```
+
+This stack runs in the `Development` environment for parity with Aspire: EF
+migrations auto-apply on startup and the committed dev JWT public key is used.
+It is meant for local / CI parity — production deployment uses real secrets and
+a dedicated migration job, not this compose file.
+
 ### Step 6: Run Tests
 
 Keep Docker Desktop running. Tests use Testcontainers and start their own
