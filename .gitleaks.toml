@@ -1,0 +1,20 @@
+[extend]
+# Extend from the default gitleaks config
+useDefault = true
+
+[allowlist]
+description = "QuraEx allowlist"
+paths = [
+  ".gitleaks.toml",
+  # Allow the nuget.config env-var placeholder (not a real secret)
+  "nuget.config",
+]
+regexes = [
+  # Allow the %GITHUB_PACKAGES_TOKEN% placeholder pattern
+  '''\%GITHUB_PACKAGES_TOKEN\%''',
+  # Allow example/placeholder values in .env.example
+  '''your[-_].*[-_]here''',
+  '''REPLACE[-_]ME''',
+  '''placeholder''',
+  '''changeme''',
+]

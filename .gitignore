@@ -1,0 +1,67 @@
+## .NET / C# ##
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.idea/
+*.DotSettings.user
+
+# Build output
+artifacts/
+publish/
+[Pp]ublish/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/
+!**/[Pp]ackages/build/
+nuget.exe
+project.lock.json
+project.fragment.lock.json
+artifacts/
+package-lock.json
+
+# User-secrets / environment
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
+
+# EF Core migrations temp
+*.bak
+
+# Test results
+TestResults/
+coverage/
+*.trx
+*.opencover.xml
+*.cobertura.xml
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Aspire
+.aspire/

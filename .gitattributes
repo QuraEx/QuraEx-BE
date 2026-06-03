@@ -1,0 +1,28 @@
+# Normalize line endings to LF on commit
+* text=auto eol=lf
+
+# Explicitly declare text files for LF normalization
+*.cs text eol=lf
+*.csproj text eol=lf
+*.sln text eol=lf
+*.props text eol=lf
+*.targets text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+*.editorconfig text eol=lf
+*.gitattributes text eol=lf
+*.gitignore text eol=lf
+
+# Declare binary files — no line-ending conversion, no diff
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.nupkg binary
+*.pfx binary
+*.p12 binary
+*.snupkg binary

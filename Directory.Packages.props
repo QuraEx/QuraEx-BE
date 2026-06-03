@@ -1,0 +1,88 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup Label="Aspire">
+    <PackageVersion Include="Aspire.Hosting" Version="9.3.1" />
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="9.3.1" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="9.3.1" />
+    <PackageVersion Include="Aspire.Hosting.RabbitMQ" Version="9.3.1" />
+    <PackageVersion Include="Aspire.Hosting.Redis" Version="9.3.1" />
+    <PackageVersion Include="Aspire.RabbitMQ.Client" Version="9.3.1" />
+    <PackageVersion Include="Aspire.StackExchange.Redis" Version="9.3.1" />
+    <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.3.1" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="9.3.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="MediatR">
+    <PackageVersion Include="MediatR" Version="12.4.1" />
+    <PackageVersion Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="11.1.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="FluentValidation">
+    <PackageVersion Include="FluentValidation" Version="11.11.0" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="EF Core + Npgsql">
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.0" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageVersion Include="EFCore.NamingConventions" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="MassTransit">
+    <PackageVersion Include="MassTransit" Version="8.4.1" />
+    <PackageVersion Include="MassTransit.RabbitMQ" Version="8.4.1" />
+    <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.4.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="OpenIddict">
+    <PackageVersion Include="OpenIddict.AspNetCore" Version="5.4.0" />
+    <PackageVersion Include="OpenIddict.EntityFrameworkCore" Version="5.4.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="YARP">
+    <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Auth + JWT">
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="OpenTelemetry">
+    <PackageVersion Include="OpenTelemetry" Version="1.12.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Resilience">
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="9.7.0" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.0" />
+    <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
+    <PackageVersion Include="AspNetCore.HealthChecks.Rabbitmq" Version="9.0.0" />
+    <PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Analyzers">
+    <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556" />
+    <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.10.0.115025" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Testing">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.4.0" />
+    <PackageVersion Include="Testcontainers.RabbitMq" Version="4.4.0" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="FluentAssertions" Version="8.3.0" />
+    <PackageVersion Include="NSubstitute" Version="5.3.0" />
+  </ItemGroup>
+</Project>
