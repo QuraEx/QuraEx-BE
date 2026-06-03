@@ -22,19 +22,39 @@ services:
       retries: 10
       start_period: 10s
 
-  # Uncomment as each service is implemented:
-  # postgres-identity:
-  #   image: postgres:17-alpine
-  #   environment:
-  #     POSTGRES_DB: identity
-  #     POSTGRES_USER: ${POSTGRES_USER:-postgres}
-  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-  #   ports:
-  #     - "${POSTGRES_IDENTITY_PORT:-5433}:5432"
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U postgres -d identity"]
-  #     interval: 5s
-  #     retries: 10
+  postgres-identity:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: identity
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_IDENTITY_PORT:-5433}:5432"
+    volumes:
+      - postgres_identity_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d identity"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  postgres-workspace:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: workspace
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_WORKSPACE_PORT:-5434}:5432"
+    volumes:
+      - postgres_workspace_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d workspace"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   # ── Message Broker ──────────────────────────────────────────────────────────
   rabbitmq:
@@ -63,5 +83,10 @@ services:
       timeout: 3s
       retries: 10
 
+# >>> new-service postgres (managed by scripts/new-service.sh) <<<
+
 volumes:
   postgres_authoring_data:
+  postgres_identity_data:
+  postgres_workspace_data:
+# >>> new-service volume (managed by scripts/new-service.sh) <<<

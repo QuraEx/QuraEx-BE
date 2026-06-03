@@ -34,9 +34,12 @@ artifacts/
 package-lock.json
 
 # User-secrets / environment
-.env
 .env.*
 !.env.example
+# dotenvx: encrypted .env is safe to commit (ciphertext + public key only)
+!.env
+# PRIVATE KEY — never commit; dotenvx writes this after encryption
+.env.keys
 *.pfx
 *.p12
 *.key
@@ -68,6 +71,9 @@ desktop.ini
 
 # ClaudeKit / agent planning artifacts
 plans/
+
+# Claude Core
+.claude/
 
 # Project docs — kept local (design/SRS/architecture), not tracked in the public repo
 docs/
