@@ -39,23 +39,28 @@ jobs:
               - 'building-blocks/**'
               - 'Directory.Build.props'
               - 'Directory.Packages.props'
+              - '.github/workflows/ci.yml'
             gateway:
               - 'gateway/**'
               - 'Directory.Build.props'
               - 'Directory.Packages.props'
+              - '.github/workflows/ci.yml'
             authoring:
               - 'services/authoring/**'
               - 'building-blocks/**'
               - 'Directory.Build.props'
               - 'Directory.Packages.props'
+              - '.github/workflows/ci.yml'
             aspire:
               - 'aspire/**'
+              - '.github/workflows/ci.yml'
             any-cs:
               - '**.cs'
               - '**.csproj'
               - '**.props'
               - '**.targets'
               - '**.slnx'
+              - '.github/workflows/ci.yml'
 
   # ── Build + Test matrix ────────────────────────────────────────────────────
   build-test:
@@ -123,6 +128,7 @@ jobs:
           dotnet ef migrations has-pending-model-changes \
             --project ${{ matrix.infra-project }} \
             --startup-project services/authoring/QuraEx.Authoring.Api \
+            --configuration Release \
             --no-build
 
       - name: Upload coverage report
