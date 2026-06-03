@@ -34,9 +34,12 @@ public static class Extensions
         // Idempotency retention (7-day default)
         services.AddProcessedMessageRetention<AppDbContext>();
 
-        // Dev-only: auto-apply migrations on startup
-        // Hard-guarded to IsDevelopment — prod uses dedicated migration job
-        if (env.IsDevelopment())
+        // Auto-apply migrations on startup. On by default in Development; in other
+        // environments only when RunMigrationsOnStartup=true. The pg_advisory_lock in
+        // MigrationHostedService serializes concurrent boots, so this is safe for a
+        // single-instance deployment. Multi-replica production should instead run a
+        // dedicated migration job and leave this flag off.
+        if (env.IsDevelopment() || configuration.GetValue<bool>("RunMigrationsOnStartup"))
         {
             services.AddHostedService<MigrationHostedService>();
         }

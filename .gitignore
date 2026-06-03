@@ -71,3 +71,9 @@ plans/
 
 # Project docs — kept local (design/SRS/architecture), not tracked in the public repo
 docs/
+
+# Production deploy secrets (templates *.example stay tracked)
+deploy/.env
+deploy/config/*.Production.json
+# Re-include the env template (the global .env.* rule above would otherwise hide it)
+!deploy/.env.prod.example
