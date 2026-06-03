@@ -123,6 +123,7 @@ jobs:
           dotnet ef migrations has-pending-model-changes \
             --project ${{ matrix.infra-project }} \
             --startup-project services/authoring/QuraEx.Authoring.Api \
+            --configuration Release \
             --no-build
 
       - name: Upload coverage report
