@@ -1,0 +1,6 @@
+{
+  "//": "Copy to deploy/config/authoring.appsettings.Production.json on the droplet. Paste the SAME prod RSA PUBLIC key as the gateway (services validate tokens independently against the same key).",
+  "Jwt": {
+    "PublicKeyPem": "-----BEGIN PUBLIC KEY-----\nPASTE_PROD_RSA_PUBLIC_KEY_BASE64_LINES_HERE\n-----END PUBLIC KEY-----"
+  }
+}

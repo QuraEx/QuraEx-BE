@@ -1,0 +1,106 @@
+name: quraex-prod
+
+# Production stack for a single DigitalOcean droplet, fronted by Cloudflare Tunnel.
+#
+# Key properties:
+# - NO host ports published. cloudflared reaches the gateway over the internal
+#   docker network; the droplet exposes nothing inbound except SSH (via DO firewall).
+# - Images are pulled from GHCR (built + pushed by CI), pinned by ${IMAGE_TAG}.
+# - Secrets/config come from ./.env and ./config/*.json (created on the droplet,
+#   never committed). The JWT *public* key is mounted as appsettings.Production.json
+#   so the multi-line PEM survives intact (env vars mangle newlines).
+#
+# Deploy:  docker compose -f docker-compose.prod.yml pull && \
+#          docker compose -f docker-compose.prod.yml up -d
+
+services:
+  postgres-authoring:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: authoring
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_authoring_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d authoring"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-quraex}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  authoring:
+    image: ghcr.io/bavanchun/quraex-authoring:${IMAGE_TAG:-latest}
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      # Single-instance migration on startup (advisory-lock serialized — see Extensions.cs)
+      RunMigrationsOnStartup: "true"
+      ConnectionStrings__postgres-authoring: "Host=postgres-authoring;Port=5432;Database=authoring;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: "${RABBITMQ_USER:-quraex}"
+      RabbitMQ__Password: "${RABBITMQ_PASSWORD}"
+    volumes:
+      # JWT public key (not secret) supplied as Production config overlay
+      - ./config/authoring.appsettings.Production.json:/app/appsettings.Production.json:ro
+    depends_on:
+      postgres-authoring:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  gateway:
+    image: ghcr.io/bavanchun/quraex-gateway:${IMAGE_TAG:-latest}
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      services__authoring__http__0: "http://authoring:8080"
+    volumes:
+      - ./config/gateway.appsettings.Production.json:/app/appsettings.Production.json:ro
+    depends_on:
+      authoring:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Cloudflare Tunnel — outbound-only edge. Public hostname (quraex.com → http://gateway:8080)
+  # is configured in the Cloudflare Zero Trust dashboard for this tunnel token.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env}
+    depends_on:
+      gateway:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_authoring_data:
+  rabbitmq_data:
+  redis_data:

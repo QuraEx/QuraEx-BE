@@ -1,0 +1,6 @@
+{
+  "//": "Copy to deploy/config/gateway.appsettings.Production.json on the droplet. Paste the prod RSA PUBLIC key (newlines as \\n). A public key is not secret, but keep it distinct from the dev key.",
+  "Jwt": {
+    "PublicKeyPem": "-----BEGIN PUBLIC KEY-----\nPASTE_PROD_RSA_PUBLIC_KEY_BASE64_LINES_HERE\n-----END PUBLIC KEY-----"
+  }
+}
