@@ -6,14 +6,6 @@ var postgresAuthoring = builder
     .AddPostgres("postgres-authoring")
     .WithPgAdmin();
 
-// Uncomment as each service is added:
-// var postgresIdentity    = builder.AddPostgres("postgres-identity");
-// var postgresWorkspace   = builder.AddPostgres("postgres-workspace");
-// var postgresTestArtifact = builder.AddPostgres("postgres-testartifact");
-// var postgresAiGen       = builder.AddPostgres("postgres-ai-generation");
-// var postgresExecution   = builder.AddPostgres("postgres-execution");
-// var postgresIntegration = builder.AddPostgres("postgres-integration");
-
 var rabbitmq = builder
     .AddRabbitMQ("rabbitmq")
     .WithManagementPlugin();
@@ -39,4 +31,4 @@ var authoring = builder
 
 _ = gateway.WithReference(authoring);
 
-builder.Build().Run();
+await builder.Build().RunAsync();

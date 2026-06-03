@@ -20,33 +20,37 @@ public sealed class TransactionBehavior<TRequest, TResponse>(
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
-        if (dbContext.Database.CurrentTransaction is not null)
+        var strategy = dbContext.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            // Already inside a transaction — just continue
-            return await next();
-        }
+            if (dbContext.Database.CurrentTransaction is not null)
+            {
+                // Already inside a transaction — just continue
+                return await next();
+            }
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-        logger.LogDebug("Started transaction {TransactionId}", transaction.TransactionId);
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+            logger.LogDebug("Started transaction {TransactionId}", transaction.TransactionId);
 
-        try
-        {
-            var response = await next();
+            try
+            {
+                var response = await next();
 
-            // Dispatch domain events within the same transaction before committing
-            await DispatchDomainEventsAsync(cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
+                // Dispatch domain events within the same transaction before committing
+                await DispatchDomainEventsAsync(cancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
 
-            logger.LogDebug("Committed transaction {TransactionId}", transaction.TransactionId);
-            return response;
-        }
-        catch (Exception ex)
-        {
-            await transaction.RollbackAsync(cancellationToken);
-            logger.LogDebug(ex, "Rolled back transaction {TransactionId}", transaction.TransactionId);
-            throw;
-        }
+                logger.LogDebug("Committed transaction {TransactionId}", transaction.TransactionId);
+                return response;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                logger.LogDebug(ex, "Rolled back transaction {TransactionId}", transaction.TransactionId);
+                throw;
+            }
+        });
     }
 
     private async Task DispatchDomainEventsAsync(CancellationToken cancellationToken)

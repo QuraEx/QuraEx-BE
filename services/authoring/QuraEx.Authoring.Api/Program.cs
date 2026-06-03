@@ -11,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.Services.AddAuthoringInfrastructure(builder.Configuration, builder.Environment);
-builder.Services.AddBuildingBlocks(typeof(Program));
+builder.Services.AddBuildingBlocks(typeof(Program), typeof(QuraEx.Authoring.Infrastructure.Extensions));
 
 // JWT Bearer — same RS256 public key as gateway; services validate independently
 // (never trust a gateway-injected identity header — service-side validation)

@@ -54,7 +54,7 @@ public sealed class UserStory : SoftDeletableAggregate
             UpdatedBy = createdBy,
         };
 
-        story.AddDomainEvent(new UserStoryCreatedEvent(story.Id, projectId));
+        story.AddDomainEvent(new UserStoryCreatedEvent(story.Id, projectId, story.Title));
         return story;
     }
 

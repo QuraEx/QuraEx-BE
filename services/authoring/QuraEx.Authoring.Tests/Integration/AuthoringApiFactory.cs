@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using MassTransit;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -9,7 +10,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using QuraEx.Authoring.Infrastructure;
 using Testcontainers.PostgreSql;
@@ -65,6 +68,21 @@ public sealed class AuthoringApiFactory : WebApplicationFactory<Program>, IAsync
 
         builder.ConfigureTestServices(services =>
         {
+            services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new RsaSecurityKey(_signingKey.ExportParameters(includePrivateParameters: false)),
+                    ValidateIssuer = true,
+                    ValidIssuer = "quraex-test",
+                    ValidateAudience = true,
+                    ValidAudience = "quraex-api",
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromSeconds(30),
+                };
+            });
+
             // ── Replace AppDbContext → test Postgres ──────────────────────────
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.AddDbContext<AppDbContext>(opts =>
@@ -74,14 +92,17 @@ public sealed class AuthoringApiFactory : WebApplicationFactory<Program>, IAsync
             services.AddScoped<DbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
             // ── Replace RabbitMQ bus → in-memory (no broker needed in tests) ──
-            // Remove MassTransit hosted services that connect to RabbitMQ on startup
-            var masstransitHosted = services
-                .Where(d =>
-                    d.ServiceType == typeof(IHostedService) &&
-                    d.ImplementationType?.Assembly.GetName().Name
-                        ?.StartsWith("MassTransit", StringComparison.Ordinal) == true)
+            // Remove all production MassTransit registrations first; partial removal leaves
+            // duplicate "masstransit-bus" health checks in the test service provider.
+            var masstransitDescriptors = services
+                .Where(IsMassTransitDescriptor)
                 .ToList();
-            masstransitHosted.ForEach(d => services.Remove(d));
+            masstransitDescriptors.ForEach(d => services.Remove(d));
+
+            services.RemoveAll<IConfigureOptions<HealthCheckServiceOptions>>();
+            services.RemoveAll<IPostConfigureOptions<HealthCheckServiceOptions>>();
+            services.AddHealthChecks()
+                .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
 
             // Remove bus-level singletons so AddMassTransit can register fresh in-memory ones
             foreach (var busType in new[] { typeof(IBus), typeof(IBusControl), typeof(ISendEndpointProvider), typeof(IPublishEndpoint) })
@@ -93,9 +114,22 @@ public sealed class AuthoringApiFactory : WebApplicationFactory<Program>, IAsync
                 }
             }
 
-            // Register minimal in-memory bus — TryAdd passes since singletons were removed above
-            services.AddMassTransit(x => x.UsingInMemory());
+            // Register test harness over an in-memory bus so tests can assert published events.
+            services.AddMassTransitTestHarness(x => x.UsingInMemory());
         });
+    }
+
+    private static bool IsMassTransitDescriptor(ServiceDescriptor descriptor)
+    {
+        return IsMassTransitType(descriptor.ServiceType)
+            || IsMassTransitType(descriptor.ImplementationType)
+            || IsMassTransitType(descriptor.ImplementationInstance?.GetType());
+    }
+
+    private static bool IsMassTransitType(Type? type)
+    {
+        return type?.Namespace?.StartsWith("MassTransit", StringComparison.Ordinal) == true
+            || type?.Assembly.GetName().Name?.StartsWith("MassTransit", StringComparison.Ordinal) == true;
     }
 
     public async Task InitializeAsync()
