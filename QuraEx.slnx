@@ -16,5 +16,6 @@
     <Project Path="services/authoring/QuraEx.Authoring.Contracts/QuraEx.Authoring.Contracts.csproj" />
     <Project Path="services/authoring/QuraEx.Authoring.Domain/QuraEx.Authoring.Domain.csproj" />
     <Project Path="services/authoring/QuraEx.Authoring.Infrastructure/QuraEx.Authoring.Infrastructure.csproj" />
+    <Project Path="services/authoring/QuraEx.Authoring.Tests/QuraEx.Authoring.Tests.csproj" />
   </Folder>
 </Solution>

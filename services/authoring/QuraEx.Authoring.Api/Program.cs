@@ -52,3 +52,8 @@ app.UseAuthorization();
 app.MapUserStoryEndpoints();
 
 await app.RunAsync();
+
+// Makes the compiler-generated Program class visible to the test project (required by WebApplicationFactory<Program>)
+#pragma warning disable S1118
+public partial class Program { }
+#pragma warning restore S1118

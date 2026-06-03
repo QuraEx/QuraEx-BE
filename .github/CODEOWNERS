@@ -1,0 +1,36 @@
+# CODEOWNERS — auto-requests review from the designated owner(s) on PRs.
+# Format: <pattern> <owner> [<owner> ...]
+# Patterns match the same rules as .gitignore. Last matching rule wins.
+
+# Global fallback — catches anything not matched below
+*                                   @bavanchun
+
+# Core infrastructure — lead reviews all changes here
+/Directory.Build.props              @bavanchun
+/Directory.Packages.props           @bavanchun
+/global.json                        @bavanchun
+/nuget.config                       @bavanchun
+/.editorconfig                      @bavanchun
+/.gitleaks.toml                     @bavanchun
+
+# BuildingBlocks — shared contracts, lead must approve changes
+/building-blocks/                   @bavanchun
+
+# Aspire orchestration
+/aspire/                            @bavanchun
+
+# Gateway — auth edge, lead review mandatory
+/gateway/                           @bavanchun
+
+# CI/DevOps — lead reviews pipeline changes
+/.github/                           @bavanchun
+
+# Services — per-team ownership (update as teams form)
+/services/authoring/                @bavanchun
+/services/identity/                 @bavanchun
+/services/workspace/                @bavanchun
+/services/test-artifact/            @bavanchun
+/services/ai-generation/            @bavanchun
+/services/execution/                @bavanchun
+/services/integration/              @bavanchun
+/services/notification/             @bavanchun
