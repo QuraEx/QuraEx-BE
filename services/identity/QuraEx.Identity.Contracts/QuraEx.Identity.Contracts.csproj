@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- Public DTOs + integration events consumed by other services — no domain types exposed -->
+    <ProjectReference Include="..\..\..\building-blocks\QuraEx.BuildingBlocks.Messaging\QuraEx.BuildingBlocks.Messaging.csproj" />
+  </ItemGroup>
+
+</Project>

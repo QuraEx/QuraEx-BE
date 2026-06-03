@@ -18,4 +18,18 @@
     <Project Path="services/authoring/QuraEx.Authoring.Infrastructure/QuraEx.Authoring.Infrastructure.csproj" />
     <Project Path="services/authoring/QuraEx.Authoring.Tests/QuraEx.Authoring.Tests.csproj" />
   </Folder>
+  <Folder Name="/services/identity/">
+    <Project Path="services/identity/QuraEx.Identity.Api/QuraEx.Identity.Api.csproj" />
+    <Project Path="services/identity/QuraEx.Identity.Contracts/QuraEx.Identity.Contracts.csproj" />
+    <Project Path="services/identity/QuraEx.Identity.Domain/QuraEx.Identity.Domain.csproj" />
+    <Project Path="services/identity/QuraEx.Identity.Infrastructure/QuraEx.Identity.Infrastructure.csproj" />
+    <Project Path="services/identity/QuraEx.Identity.Tests/QuraEx.Identity.Tests.csproj" />
+  </Folder>
+  <Folder Name="/services/workspace/">
+    <Project Path="services/workspace/QuraEx.Workspace.Api/QuraEx.Workspace.Api.csproj" />
+    <Project Path="services/workspace/QuraEx.Workspace.Contracts/QuraEx.Workspace.Contracts.csproj" />
+    <Project Path="services/workspace/QuraEx.Workspace.Domain/QuraEx.Workspace.Domain.csproj" />
+    <Project Path="services/workspace/QuraEx.Workspace.Infrastructure/QuraEx.Workspace.Infrastructure.csproj" />
+    <Project Path="services/workspace/QuraEx.Workspace.Tests/QuraEx.Workspace.Tests.csproj" />
+  </Folder>
 </Solution>
