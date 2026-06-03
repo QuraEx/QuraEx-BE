@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- TargetFramework, Nullable, ImplicitUsings inherited from Directory.Build.props -->
+    <Version>0.1.0</Version>
+    <PackageId>QuraEx.BuildingBlocks.Messaging</PackageId>
+    <Description>QuraEx v2 messaging primitives: MassTransit/RabbitMQ wiring, Outbox relay, idempotent consumer, dead-letter policy</Description>
+    <RepositoryUrl>https://github.com/bavanchun/QuraEx-BE</RepositoryUrl>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QuraEx.BuildingBlocks\QuraEx.BuildingBlocks.csproj" />
+    <PackageReference Include="MassTransit" />
+    <PackageReference Include="MassTransit.RabbitMQ" />
+    <PackageReference Include="MassTransit.EntityFrameworkCore" />
+  </ItemGroup>
+
+</Project>

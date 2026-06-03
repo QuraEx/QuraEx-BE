@@ -1,2 +1,6 @@
 <Solution>
+  <Folder Name="/building-blocks/">
+    <Project Path="building-blocks/QuraEx.BuildingBlocks.Messaging/QuraEx.BuildingBlocks.Messaging.csproj" />
+    <Project Path="building-blocks/QuraEx.BuildingBlocks/QuraEx.BuildingBlocks.csproj" />
+  </Folder>
 </Solution>
