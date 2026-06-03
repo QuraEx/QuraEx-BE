@@ -1,6 +1,13 @@
 <Solution>
+  <Folder Name="/aspire/">
+    <Project Path="aspire/QuraEx.AppHost/QuraEx.AppHost.csproj" />
+    <Project Path="aspire/QuraEx.ServiceDefaults/QuraEx.ServiceDefaults.csproj" />
+  </Folder>
   <Folder Name="/building-blocks/">
     <Project Path="building-blocks/QuraEx.BuildingBlocks.Messaging/QuraEx.BuildingBlocks.Messaging.csproj" />
     <Project Path="building-blocks/QuraEx.BuildingBlocks/QuraEx.BuildingBlocks.csproj" />
+  </Folder>
+  <Folder Name="/gateway/">
+    <Project Path="gateway/QuraEx.Gateway/QuraEx.Gateway.csproj" />
   </Folder>
 </Solution>
