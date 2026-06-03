@@ -3,7 +3,7 @@
 
 # Check if gitleaks is available
 if command -v gitleaks > /dev/null 2>&1; then
-    gitleaks protect --staged --config .gitleaks.toml --redact
+    gitleaks git --staged --config .gitleaks.toml --redact --no-banner
     if [ $? -ne 0 ]; then
         echo "❌  gitleaks: potential secret detected in staged files."
         echo "    Remove the secret, add to .gitleaks.toml allowlist, or use user-secrets/env vars."
