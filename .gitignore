@@ -68,3 +68,6 @@ desktop.ini
 
 # ClaudeKit / agent planning artifacts
 plans/
+
+# Project docs — kept local (design/SRS/architecture), not tracked in the public repo
+docs/
