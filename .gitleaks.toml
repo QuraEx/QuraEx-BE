@@ -8,6 +8,8 @@ paths = [
   ".gitleaks.toml",
   # Allow the nuget.config env-var placeholder (not a real secret)
   "nuget.config",
+  # dotenvx-encrypted .env: values are ciphertext + public key only — no real secrets
+  ".env",
 ]
 regexes = [
   # Allow the %GITHUB_PACKAGES_TOKEN% placeholder pattern

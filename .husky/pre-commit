@@ -1,7 +1,19 @@
 #!/bin/sh
 # Block secrets from staged files before committing to the PUBLIC repo
 
-# Check if gitleaks is available
+# --- Guard 1: dotenvx precommit ---
+# Fails if any tracked .env* file is NOT encrypted (e.g. someone ran
+# `dotenvx decrypt` and forgot to re-encrypt before staging).
+# .gitleaks.toml allowlists .env (ciphertext), so gitleaks alone would not
+# catch a plaintext .env — this guard fills that gap.
+npx --yes @dotenvx/dotenvx@latest ext precommit
+if [ $? -ne 0 ]; then
+    echo "❌  dotenvx precommit: unencrypted .env file detected in staged changes."
+    echo "    Run 'dotenvx encrypt' (or 'make secrets-encrypt'), then re-stage .env."
+    exit 1
+fi
+
+# --- Guard 2: gitleaks secret scan ---
 if command -v gitleaks > /dev/null 2>&1; then
     gitleaks git --staged --config .gitleaks.toml --redact --no-banner
     if [ $? -ne 0 ]; then
@@ -14,7 +26,8 @@ else
     echo "    Secret scanning skipped (STRONGLY recommended to install before pushing to PUBLIC repo)."
 fi
 
-# Run dotnet format check on staged .cs files (skip in CI — handled by build job)
+# --- Guard 3: dotnet format check on staged .cs files ---
+# Skip in CI — handled by build job
 if [ -z "$CI" ]; then
     STAGED_CS=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.cs$' | head -20)
     if [ -n "$STAGED_CS" ]; then

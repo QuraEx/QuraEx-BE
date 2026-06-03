@@ -134,6 +134,54 @@ Expected result:
 - EF says no model changes since the last migration.
 - Vulnerability scan reports no vulnerable packages.
 
+## Quickstart (Docker — no .NET SDK required)
+
+Fastest path for frontend devs, QA, and onboarding. No SDK install needed.
+
+**Prerequisite:** The committed `.env` is dotenvx ciphertext. A plain
+`docker compose up` without the private key will fail — that is by design.
+Get `DOTENV_PRIVATE_KEY` from the team lead via a secure channel (password
+manager or encrypted DM) before running the stack.
+
+```sh
+# 1. Install dotenvx (or use npx — no global install required)
+npm install -g @dotenvx/dotenvx
+# -or- skip this; every command below works with npx @dotenvx/dotenvx@latest
+
+# 2. Get the private key from the team lead and export it
+export DOTENV_PRIVATE_KEY='<key-from-lead>'
+# Add to ~/.zshrc or ~/.bashrc to persist across sessions
+
+# 3. Clone and enter the repo
+git clone git@github.com:bavanchun/QuraEx-BE.git
+cd QuraEx-BE/quraexv2
+
+# 4. Start the full stack (first run builds images — takes a few minutes)
+dotenvx run -- docker compose up -d --build
+# -or- make up
+
+# 5. Verify
+curl http://localhost:8080/api/authoring/health   # -> 200 OK
+```
+
+> A clone WITHOUT `DOTENV_PRIVATE_KEY` cannot run the stack — the committed
+> `.env` is encrypted ciphertext. Get the key from the lead before proceeding.
+> See [DOTENVX_QUICK_START.md](./DOTENVX_QUICK_START.md) for full setup,
+> daily workflow, key rotation, and the admin edit→encrypt→commit cycle.
+
+`docker compose up -d` auto-merges `docker-compose.override.yml` (application
+services) on top of `docker-compose.yml` (infra) — no `-f` flags needed.
+
+- Subsequent runs: drop `--build` unless code changed
+  (`dotenvx run -- docker compose up -d`)
+- Stop the stack: `make down`  or  `dotenvx run -- docker compose down`
+- Wipe data volumes too: `make clean`  or  `dotenvx run -- docker compose down -v`
+- Follow logs: `make logs`  or  `dotenvx run -- docker compose logs -f`
+
+> Backend devs doing active feature work should use **Aspire** (see Quickstart
+> above) for hot reload, the observability dashboard, and debugger attach.
+> Aspire manages its own service configs and is unaffected by the `.env` file.
+
 ## Run Modes
 
 Four ways to run the backend locally. The Quickstart above uses **Aspire** — the
@@ -142,25 +190,28 @@ others are for specific needs.
 | Mode | Command | When to use |
 |------|---------|-------------|
 | Aspire (default) | `dotnet run --project aspire/QuraEx.AppHost/QuraEx.AppHost.csproj` | Daily dev — hot reload, debugging, observability dashboard |
-| Docker full stack | `make up` | Identical environment on every machine — demos, onboarding, "works on my machine" debugging; no .NET SDK needed to run |
+| Docker full stack | `dotenvx run -- docker compose up -d --build` or `make up` | Identical environment on every machine — demos, onboarding, FE/QA; no .NET SDK needed |
 | Infra only + IDE | `make up-infra` | Run services from your IDE/Aspire against containerized Postgres/RabbitMQ/Redis |
 | Single service | see below | Run one service manually, without the Gateway |
 
 ### Docker full stack
 
-Builds an image per service and runs everything — gateway, authoring, Postgres,
-RabbitMQ, Redis — in containers.
+Builds an image per service and runs everything — gateway, authoring, identity,
+workspace, Postgres, RabbitMQ, Redis — in containers. No .NET SDK required.
 
 ```sh
-make up          # build images + start the whole stack
-make logs        # follow logs
-make down        # stop and remove containers
-make clean       # also remove volumes (destroys local data)
+dotenvx run -- docker compose up -d --build   # or: make up
+dotenvx run -- docker compose logs -f         # or: make logs
+dotenvx run -- docker compose down            # or: make down
+dotenvx run -- docker compose down -v         # or: make clean (destroys local data)
 ```
 
-`make up` wraps `docker compose -f docker-compose.yml -f docker-compose.app.yml up --build -d`.
-The two files split on purpose: `docker-compose.yml` is backing infra only;
-`docker-compose.app.yml` adds the containerized `gateway` + `authoring`.
+> Requires `DOTENV_PRIVATE_KEY` in the environment — see
+> [DOTENVX_QUICK_START.md](./DOTENVX_QUICK_START.md).
+
+`docker-compose.yml` contains backing infra only; `docker-compose.override.yml`
+adds the containerized app services. Docker Compose v2 auto-merges the override
+file on plain `docker compose up`, so no `-f` flags are needed.
 
 Default ports (override via `.env`, see `.env.example`):
 
@@ -168,10 +219,14 @@ Default ports (override via `.env`, see `.env.example`):
 |---------|-----|
 | Gateway (public entry) | http://localhost:8080 |
 | Authoring (direct) | http://localhost:8081 |
+| Identity (direct) | http://localhost:8082 |
+| Workspace (direct) | http://localhost:8083 |
 | RabbitMQ management UI | http://localhost:15672 |
 
 ```sh
 curl http://localhost:8080/api/authoring/health   # -> Healthy
+curl http://localhost:8080/api/identity/health    # -> Healthy
+curl http://localhost:8080/api/workspace/health   # -> Healthy
 ```
 
 This stack runs the `Development` environment for parity with Aspire (migrations
@@ -245,7 +300,7 @@ quraexv2/
 ├── global.json
 ├── Makefile                            # make up / up-infra / down / logs / clean
 ├── docker-compose.yml                  # backing infra (Postgres/RabbitMQ/Redis)
-└── docker-compose.app.yml              # containerized gateway + authoring
+└── docker-compose.override.yml         # app services (auto-merged by docker compose up)
 ```
 
 > Design docs (architecture, SRS, DB conventions) are kept **local-only** and

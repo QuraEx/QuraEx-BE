@@ -807,6 +807,136 @@ rm -f "${SLN}.bak"
 # Disarm the trap (success path)
 trap - ERR INT TERM
 
+# ── COMPOSE AUTO-WIRING ──────────────────────────────────────────────────────
+# Insert postgres + app service blocks into the Docker Compose files so
+# `docker compose up -d` picks up the new service without manual edits.
+# Keyed on ANCHOR COMMENTS written by task 2 — if anchors are absent (older
+# checkout), we skip insertion and print the blocks in next-steps instead.
+
+INFRA_COMPOSE="${REPO_ROOT}/docker-compose.yml"
+OVERRIDE_COMPOSE="${REPO_ROOT}/docker-compose.override.yml"
+
+COMPOSE_WIRED=0   # track whether we successfully inserted both blocks
+
+if [[ "${DB_MODE}" == "postgres" ]]; then
+
+    # ── Build the postgres service block (indented 2 spaces, YAML services level) ──
+    POSTGRES_BLOCK="  postgres-${SLUG}:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${SLUG_US}
+      POSTGRES_USER: \${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:-postgres}
+    # Internal-only by default (apps reach it on the compose network as postgres-${SLUG}:5432).
+    # To expose for local DB tools, add:  ports: [\"\${${ENV_PREFIX}_DB_PORT:-54xx}:5432\"]  (set the var in .env).
+    volumes:
+      - postgres_${SLUG_US}_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [\"CMD-SHELL\", \"pg_isready -U \${POSTGRES_USER:-postgres} -d ${SLUG_US}\"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s"
+
+    VOLUME_LINE="  postgres_${SLUG_US}_data:"
+
+    # ── Insert postgres block above the postgres anchor in docker-compose.yml ──
+    # Uses a temp block file to avoid awk -v multiline variable issues on BSD awk (macOS).
+    POSTGRES_ANCHOR="# >>> new-service postgres (managed by scripts/new-service.sh) <<<"
+    VOLUME_ANCHOR="# >>> new-service volume (managed by scripts/new-service.sh) <<<"
+
+    if [[ -f "${INFRA_COMPOSE}" ]] && grep -qF "${POSTGRES_ANCHOR}" "${INFRA_COMPOSE}"; then
+        # Write block to temp file, then use awk to splice it in above the anchor
+        POSTGRES_BLOCK_FILE="${INFRA_COMPOSE}.block.tmp"
+        printf '%s\n\n' "${POSTGRES_BLOCK}" > "${POSTGRES_BLOCK_FILE}"
+
+        awk -v anchor="${POSTGRES_ANCHOR}" -v blockfile="${POSTGRES_BLOCK_FILE}" '
+            $0 == anchor {
+                while ((getline line < blockfile) > 0) print line;
+                close(blockfile);
+            }
+            { print }
+        ' "${INFRA_COMPOSE}" > "${INFRA_COMPOSE}.tmp" && mv "${INFRA_COMPOSE}.tmp" "${INFRA_COMPOSE}"
+        rm -f "${POSTGRES_BLOCK_FILE}"
+        echo "       Inserted postgres-${SLUG} into docker-compose.yml."
+
+        # Insert the volume entry above the volume anchor
+        if grep -qF "${VOLUME_ANCHOR}" "${INFRA_COMPOSE}"; then
+            VOLUME_LINE_FILE="${INFRA_COMPOSE}.vol.tmp"
+            printf '%s\n' "${VOLUME_LINE}" > "${VOLUME_LINE_FILE}"
+
+            awk -v anchor="${VOLUME_ANCHOR}" -v blockfile="${VOLUME_LINE_FILE}" '
+                $0 == anchor {
+                    while ((getline line < blockfile) > 0) print line;
+                    close(blockfile);
+                }
+                { print }
+            ' "${INFRA_COMPOSE}" > "${INFRA_COMPOSE}.tmp" && mv "${INFRA_COMPOSE}.tmp" "${INFRA_COMPOSE}"
+            rm -f "${VOLUME_LINE_FILE}"
+            echo "       Inserted postgres_${SLUG_US}_data volume into docker-compose.yml."
+        else
+            echo "WARNING: Volume anchor not found in ${INFRA_COMPOSE} — skipping volume entry." >&2
+        fi
+    elif [[ ! -f "${INFRA_COMPOSE}" ]]; then
+        echo "NOTE: ${INFRA_COMPOSE} not found — skipping compose infra insertion."
+        COMPOSE_WIRED=2   # flag: print blocks in next-steps
+    else
+        echo "WARNING: Postgres anchor not found in ${INFRA_COMPOSE} — skipping insertion." >&2
+        COMPOSE_WIRED=2
+    fi
+
+else
+    echo "       DB mode is mongo — skipping postgres compose insertion."
+    echo "       TODO: add a mongo service block to docker-compose.yml manually for ${SLUG}."
+fi
+
+# ── Build the app service block for docker-compose.override.yml ──────────────
+APP_BLOCK="  ${SLUG}:
+    build:
+      context: .
+      dockerfile: services/${SLUG}/QuraEx.${NAME}.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: \"8080\"
+      ConnectionStrings__postgres-${SLUG}: \"Host=postgres-${SLUG};Port=5432;Database=${SLUG_US};Username=\${POSTGRES_USER:-postgres};Password=\${POSTGRES_PASSWORD:-postgres}\"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: \"\${RABBITMQ_USER:-guest}\"
+      RabbitMQ__Password: \"\${RABBITMQ_PASSWORD:-guest}\"
+    # No host port published — the gateway routes here internally (http://${SLUG}:8080).
+    # To expose directly for debugging, add:  ports: [\"\${${ENV_PREFIX}_PORT:-80xx}:8080\"]  (set the var in .env).
+    depends_on:
+      postgres-${SLUG}:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped"
+
+APP_ANCHOR="# >>> new-service app (managed by scripts/new-service.sh) <<<"
+
+if [[ -f "${OVERRIDE_COMPOSE}" ]] && grep -qF "${APP_ANCHOR}" "${OVERRIDE_COMPOSE}"; then
+    APP_BLOCK_FILE="${OVERRIDE_COMPOSE}.block.tmp"
+    printf '%s\n\n' "${APP_BLOCK}" > "${APP_BLOCK_FILE}"
+
+    awk -v anchor="${APP_ANCHOR}" -v blockfile="${APP_BLOCK_FILE}" '
+        $0 == anchor {
+            while ((getline line < blockfile) > 0) print line;
+            close(blockfile);
+        }
+        { print }
+    ' "${OVERRIDE_COMPOSE}" > "${OVERRIDE_COMPOSE}.tmp" && mv "${OVERRIDE_COMPOSE}.tmp" "${OVERRIDE_COMPOSE}"
+    rm -f "${APP_BLOCK_FILE}"
+    echo "       Inserted ${SLUG} app service into docker-compose.override.yml."
+    if [[ "${COMPOSE_WIRED}" -eq 0 ]]; then
+        COMPOSE_WIRED=1
+    fi
+elif [[ ! -f "${OVERRIDE_COMPOSE}" ]]; then
+    echo "NOTE: ${OVERRIDE_COMPOSE} not found — skipping compose override insertion."
+    COMPOSE_WIRED=2
+else
+    echo "WARNING: App anchor not found in ${OVERRIDE_COMPOSE} — skipping insertion." >&2
+    COMPOSE_WIRED=2
+fi
+
 # ── NEXT STEPS ───────────────────────────────────────────────────────────────
 
 # Compute Aspire mangled project type: dots → underscores
@@ -819,9 +949,38 @@ echo "╔═══════════════════════�
 echo "║  QuraEx.${NAME} scaffolded successfully!"
 echo "╚══════════════════════════════════════════════════════════════════════╝"
 echo ""
+
+# If compose wiring failed (missing anchors), print the blocks for manual insertion
+if [[ "${COMPOSE_WIRED}" -eq 2 ]]; then
+    echo "── Docker Compose blocks (insert manually — anchors not found) ─────────"
+    echo ""
+    if [[ "${DB_MODE}" == "postgres" ]]; then
+        echo "  docker-compose.yml → add under services:, and add volume entry:"
+        echo ""
+        echo "${POSTGRES_BLOCK}"
+        echo ""
+        echo "  volumes: section entry:"
+        echo "${VOLUME_LINE}"
+        echo ""
+    fi
+    echo "  docker-compose.override.yml → add under services::"
+    echo ""
+    echo "${APP_BLOCK}"
+    echo ""
+fi
+
 echo "── Next Steps ──────────────────────────────────────────────────────────"
 echo ""
-echo "1. AppHost wiring (aspire/QuraEx.AppHost/Program.cs):"
+if [[ "${COMPOSE_WIRED}" -eq 1 ]]; then
+    echo "1. Docker Compose: DONE — postgres-${SLUG} + ${SLUG} app service auto-inserted."
+    echo "   Add \${${ENV_PREFIX}_PORT} to .env.example and run: docker compose up -d --build"
+    echo ""
+else
+    echo "1. Docker Compose: see blocks above for manual insertion into compose files."
+    echo "   Add \${${ENV_PREFIX}_PORT} to .env.example and run: docker compose up -d --build"
+    echo ""
+fi
+echo "2. AppHost wiring (aspire/QuraEx.AppHost/Program.cs):"
 echo ""
 echo "   // Add Postgres resource for ${NAME}"
 echo "   var postgres${NAME} = builder"
@@ -837,11 +996,11 @@ echo ""
 echo "   // Wire gateway → ${NAME}"
 echo "   gateway.WithReference(${SLUG//-/}Api).WaitFor(${SLUG//-/}Api);"
 echo ""
-echo "2. Gateway route (gateway/QuraEx.Gateway/appsettings.json):"
+echo "3. Gateway route (gateway/QuraEx.Gateway/appsettings.json):"
 echo "   Add a route cluster for ${NAME} with path /api/${SLUG}/{**catch-all}."
 echo "   Use AuthorizationPolicy: \"default\" (or \"anonymous\" for auth-server services)."
 echo ""
-echo "3. Gateway YARP config snippet:"
+echo "4. Gateway YARP config snippet:"
 echo "   \"${SLUG}-cluster\": {"
 echo "     \"Destinations\": { \"${SLUG}\": { \"Address\": \"{${NAME}_BASE_URL}\" } }"
 echo "   }"
@@ -849,17 +1008,17 @@ echo "   Route: { \"RouteId\": \"${SLUG}\", \"ClusterId\": \"${SLUG}-cluster\","
 echo "     \"Match\": { \"Path\": \"/api/${SLUG}/{**catch-all}\" },"
 echo "     \"AuthorizationPolicy\": \"default\" }"
 echo ""
-echo "4. ci.yml: Add '${NAME}' to the service matrix and path filter for"
+echo "5. ci.yml: Add '${NAME}' to the service matrix and path filter for"
 echo "   services/${SLUG}/."
 echo ""
-echo "5. Golden DB flow: After wiring AppHost, run:"
+echo "6. Golden DB flow: After wiring AppHost, run:"
 echo "   dotnet ef migrations has-pending-model-changes \\"
 echo "     --project services/${SLUG}/QuraEx.${NAME}.Infrastructure \\"
 echo "     --startup-project services/${SLUG}/QuraEx.${NAME}.Api \\"
 echo "     --no-build"
 echo "   Expected: no pending model changes."
 echo ""
-echo "6. CODEOWNERS: /services/${SLUG}/ is already covered by the wildcard rule."
+echo "7. CODEOWNERS: /services/${SLUG}/ is already covered by the wildcard rule."
 echo ""
 echo "── Service Location ────────────────────────────────────────────────────"
 echo "   services/${SLUG}/"
