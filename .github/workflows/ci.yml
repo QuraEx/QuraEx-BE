@@ -96,16 +96,21 @@ jobs:
             project: services/authoring/QuraEx.Authoring.Api/QuraEx.Authoring.Api.csproj
             test-project: services/authoring/QuraEx.Authoring.Tests/QuraEx.Authoring.Tests.csproj
             infra-project: services/authoring/QuraEx.Authoring.Infrastructure
+            coverage-threshold: 60
             changed: ${{ needs.changes.outputs.authoring }}
           - service: identity
             project: services/identity/QuraEx.Identity.Api/QuraEx.Identity.Api.csproj
             test-project: services/identity/QuraEx.Identity.Tests/QuraEx.Identity.Tests.csproj
             infra-project: services/identity/QuraEx.Identity.Infrastructure
+            # Stub: only a /health smoke test until business logic lands. Raise to 60 with the first real feature.
+            coverage-threshold: 0
             changed: ${{ needs.changes.outputs.identity }}
           - service: workspace
             project: services/workspace/QuraEx.Workspace.Api/QuraEx.Workspace.Api.csproj
             test-project: services/workspace/QuraEx.Workspace.Tests/QuraEx.Workspace.Tests.csproj
             infra-project: services/workspace/QuraEx.Workspace.Infrastructure
+            # Stub: only a /health smoke test until business logic lands. Raise to 60 with the first real feature.
+            coverage-threshold: 0
             changed: ${{ needs.changes.outputs.workspace }}
 
     steps:
@@ -139,7 +144,7 @@ jobs:
             -c Release \
             --no-restore \
             /p:CollectCoverage=true \
-            /p:Threshold=60 \
+            /p:Threshold=${{ matrix.coverage-threshold }} \
             /p:ThresholdType=line \
             /p:ThresholdStat=total \
             --collect:"XPlat Code Coverage" \

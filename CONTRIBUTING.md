@@ -177,6 +177,7 @@ In `.github/workflows/ci.yml`, add rows to the `build-test` matrix:
   project: services/<svc>/QuraEx.<Svc>.Api/QuraEx.<Svc>.Api.csproj
   test-project: services/<svc>/QuraEx.<Svc>.Tests/QuraEx.<Svc>.Tests.csproj
   infra-project: services/<svc>/QuraEx.<Svc>.Infrastructure
+  coverage-threshold: 0   # stub has only the /health smoke test; raise to 60 with the first real feature
   changed: ${{ needs.changes.outputs.<svc> }}
 ```
 
