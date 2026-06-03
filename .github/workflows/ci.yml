@@ -207,6 +207,33 @@ jobs:
           fi
           echo "✅  No vulnerable packages found."
 
+  # ── Aggregate gate — the single required status check ──────────────────────
+  # Branch protection requires only this job. It passes when every gating job
+  # either succeeded or was skipped by the path filter, so doc-only / infra-only
+  # PRs (where build-test & security don't run) merge cleanly instead of hanging
+  # forever on required checks that never report.
+  ci-gate:
+    name: CI Gate
+    if: always()
+    needs: [changes, build-test, security]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify gating jobs passed or were skipped
+        run: |
+          failed=0
+          for r in \
+            "changes:${{ needs.changes.result }}" \
+            "build-test:${{ needs.build-test.result }}" \
+            "security:${{ needs.security.result }}"; do
+            name="${r%%:*}"; res="${r##*:}"
+            echo "$name = $res"
+            if [ "$res" = "failure" ] || [ "$res" = "cancelled" ]; then
+              echo "::error::Gating job '$name' did not pass ($res)."
+              failed=1
+            fi
+          done
+          [ "$failed" -eq 0 ] && echo "✅  All gating jobs passed or were skipped." || exit 1
+
   # ── Pack & Push BuildingBlocks to GitHub Packages (main only) ─────────────
   pack-push:
     name: Pack & Push BuildingBlocks
