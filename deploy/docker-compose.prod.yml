@@ -57,7 +57,7 @@ services:
     restart: unless-stopped
 
   authoring:
-    image: ghcr.io/bavanchun/quraex-authoring:${IMAGE_TAG:-latest}
+    image: ghcr.io/quraex/quraex-authoring:${IMAGE_TAG:-latest}
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: "8080"
@@ -78,7 +78,7 @@ services:
     restart: unless-stopped
 
   gateway:
-    image: ghcr.io/bavanchun/quraex-gateway:${IMAGE_TAG:-latest}
+    image: ghcr.io/quraex/quraex-gateway:${IMAGE_TAG:-latest}
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: "8080"

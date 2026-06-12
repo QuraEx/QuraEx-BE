@@ -26,7 +26,7 @@ CI jobs `publish-images` + `deploy` (in `.github/workflows/ci.yml`) run on every
 ### 1. Provision the droplet
 SSH in (or use the DO Web Console) and run:
 ```sh
-curl -fsSL https://raw.githubusercontent.com/bavanchun/QuraEx-BE/main/quraexv2/deploy/setup-droplet.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/quraex/QuraEx-BE/main/quraexv2/deploy/setup-droplet.sh | sudo bash
 ```
 
 ### 2. Generate a production JWT keypair (public key is not secret; keep the private key safe for the future Identity service)

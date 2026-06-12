@@ -5,7 +5,7 @@
     <Version>0.1.0</Version>
     <PackageId>QuraEx.BuildingBlocks</PackageId>
     <Description>QuraEx v2 shared cross-cutting primitives: Result, BaseEntity, MediatR behaviors, Outbox, EF conventions</Description>
-    <RepositoryUrl>https://github.com/bavanchun/QuraEx-BE</RepositoryUrl>
+    <RepositoryUrl>https://github.com/quraex/QuraEx-BE</RepositoryUrl>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 

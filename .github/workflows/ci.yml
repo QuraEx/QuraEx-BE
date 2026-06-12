@@ -290,7 +290,7 @@ jobs:
       - name: Push to GitHub Packages
         run: |
           dotnet nuget push /tmp/packages/*.nupkg \
-            --source "https://nuget.pkg.github.com/bavanchun/index.json" \
+            --source "https://nuget.pkg.github.com/quraex/index.json" \
             --api-key ${{ secrets.GITHUB_TOKEN }} \
             --skip-duplicate
 

@@ -5,7 +5,7 @@
     <Version>0.1.0</Version>
     <PackageId>QuraEx.BuildingBlocks.Messaging</PackageId>
     <Description>QuraEx v2 messaging primitives: MassTransit/RabbitMQ wiring, Outbox relay, idempotent consumer, dead-letter policy</Description>
-    <RepositoryUrl>https://github.com/bavanchun/QuraEx-BE</RepositoryUrl>
+    <RepositoryUrl>https://github.com/quraex/QuraEx-BE</RepositoryUrl>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 

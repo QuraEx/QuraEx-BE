@@ -27,7 +27,7 @@ If Docker Desktop is installed but stopped, start it now.
 ### Step 2: Clone the Repo
 
 ```sh
-git clone git@github.com:bavanchun/QuraEx-BE.git
+git clone git@github.com:quraex/QuraEx-BE.git
 cd QuraEx-BE/quraexv2
 ```
 
@@ -153,7 +153,7 @@ export DOTENV_PRIVATE_KEY='<key-from-lead>'
 # Add to ~/.zshrc or ~/.bashrc to persist across sessions
 
 # 3. Clone and enter the repo
-git clone git@github.com:bavanchun/QuraEx-BE.git
+git clone git@github.com:quraex/QuraEx-BE.git
 cd QuraEx-BE/quraexv2
 
 # 4. Start the full stack (first run builds images — takes a few minutes)

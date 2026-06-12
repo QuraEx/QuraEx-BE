@@ -5,7 +5,7 @@
 # so no inbound web ports are needed).
 #
 # Run once as root (or with sudo) on the droplet:
-#   curl -fsSL https://raw.githubusercontent.com/bavanchun/QuraEx-BE/main/quraexv2/deploy/setup-droplet.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/quraex/QuraEx-BE/main/quraexv2/deploy/setup-droplet.sh | sudo bash
 # or copy this file over and: sudo bash setup-droplet.sh
 set -euo pipefail
 

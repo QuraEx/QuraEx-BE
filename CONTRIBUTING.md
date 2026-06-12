@@ -4,7 +4,7 @@
 
 ```sh
 # 1. Clone
-git clone git@github.com:bavanchun/QuraEx-BE.git
+git clone git@github.com:quraex/QuraEx-BE.git
 cd QuraEx-BE/quraexv2
 
 # 2. Restore — installs Husky hooks automatically
