@@ -1,7 +1,8 @@
 # QuraEx v2 Backend
 
 .NET 10 microservices backend using Vertical Slice architecture, CQRS/MediatR,
-MassTransit, YARP Gateway, PostgreSQL, RabbitMQ, Redis, and .NET Aspire.
+MassTransit, an API Gateway (YARP today — migrating to Kong DB-less, lead-owned),
+PostgreSQL, RabbitMQ, Redis, and .NET Aspire.
 
 ## Quickstart
 
@@ -289,7 +290,8 @@ quraexv2/
 │   ├── QuraEx.BuildingBlocks/          # Result<T>, entities, MediatR, EF conventions
 │   └── QuraEx.BuildingBlocks.Messaging/
 ├── gateway/
-│   └── QuraEx.Gateway/                 # YARP reverse proxy and JWT validation
+│   └── QuraEx.Gateway/                 # API Gateway: YARP reverse proxy + JWT today;
+│                                       #   decided target is Kong DB-less (lead-owned migration)
 ├── services/
 │   └── authoring/                      # Reference service implementation
 ├── deploy/                             # Production deploy (compose, runbook, droplet setup)

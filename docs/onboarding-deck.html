@@ -89,7 +89,7 @@
         <div class="card"><h3>Giao tiếp</h3>Event qua MassTransit / RabbitMQ</div>
       </div>
       <div class="col">
-        <div class="card"><h3>Cổng vào</h3>YARP Gateway — định tuyến + xác thực JWT</div>
+        <div class="card"><h3>Cổng vào</h3>Kong API Gateway (DB-less) — định tuyến + xác thực JWT ở biên</div>
         <div class="card"><h3>Dữ liệu & dev</h3>PostgreSQL (1 DB/service), Redis, điều phối local bằng .NET Aspire</div>
       </div>
     </div>
@@ -99,10 +99,10 @@
   <section class="slide">
     <div class="tag">Kiến trúc</div>
     <h2>8 service theo nghiệp vụ</h2>
-    <p>Client → <b>Gateway</b> (YARP) → từng service độc lập, mỗi service có DB riêng và phát/nhận event qua RabbitMQ.</p>
+    <p>Client → <b>Gateway</b> (Kong DB-less) → từng service độc lập, mỗi service có DB riêng và phát/nhận event qua RabbitMQ.</p>
     <div class="flow">
       <span class="node">Client / FE</span><span class="arrow">→</span>
-      <span class="node hl">YARP Gateway</span><span class="arrow">→</span>
+      <span class="node hl">Kong Gateway</span><span class="arrow">→</span>
       <span class="node">Identity</span>
       <span class="node">Workspace</span>
       <span class="node hl">Authoring</span>
@@ -136,6 +136,240 @@
     </div>
   </section>
 
+  <!-- 4b · Quyết định đã chốt -->
+  <section class="slide">
+    <div class="tag">Đã chốt</div>
+    <h2>Quyết định kiến trúc — bản chốt</h2>
+    <table style="font-size:.98rem">
+      <thead><tr><th>Hạng mục</th><th>Chốt</th><th>Ghi chú cho team</th></tr></thead>
+      <tbody>
+        <tr><td><b>API Gateway</b></td><td><span class="pill green">Kong DB-less</span></td><td>Đích đã chốt (đang migrate từ YARP). Lead handle — team không đụng, gọi qua <code>localhost:8080</code>.</td></tr>
+        <tr><td><b>Login user (IdP)</b></td><td><span class="pill green">OpenIddict</span></td><td>Tự host JWKS chuẩn OIDC, federation-ready (Cognito sau).</td></tr>
+        <tr><td><b>AWS IAM / S3</b></td><td><span class="pill yellow">Thiết kế giấy</span></td><td>Hạ tầng deploy, KHÔNG phải login. Local dùng MinIO.</td></tr>
+        <tr><td><b>Cloud đích</b></td><td><span class="pill green">AWS</span></td><td>EKS/ECS + RDS + S3.</td></tr>
+        <tr><td><b>LLM</b></td><td><span class="pill green">Third-party + router</span></td><td>OpenAI/Gemini trước; giữ fallback/circuit-breaker cho self-host sau.</td></tr>
+        <tr><td><b>Execution</b></td><td><span class="pill yellow">Playwright Mức 1</span></td><td>QA viết script, service chạy. Mức 2 (LLM sinh script) nếu dư.</td></tr>
+        <tr><td><b>Notification · Integration</b></td><td><span class="pill red">Làm sau</span></td><td>Chỉ subscribe event, ngoài đường đi chính.</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Xương sống MUST-code: <b>Identity → Workspace → Authoring → TestArtifact → AI&nbsp;Gen → Execution</b>.</p>
+  </section>
+
+  <!-- 4c · IdP & AWS, chống nhầm -->
+  <section class="slide">
+    <div class="tag">Hay bị hỏi</div>
+    <h2>IdP &amp; AWS — đừng nhầm 2 thứ</h2>
+    <div class="cols">
+      <div class="col">
+        <div class="card">
+          <h3>"AWS IAM" ≠ login user</h3>
+          <p class="muted"><b>AWS IAM</b> = phân quyền <b>tài nguyên cloud</b> (pod nào đọc S3, gọi RDS — chuyện deploy/CI). <b>Login user</b> = <b>OpenIddict</b>. Hai thứ khác nhau hoàn toàn.</p>
+        </div>
+        <div class="card">
+          <h3>Vì sao OpenIddict, không Cognito?</h3>
+          <p class="muted">Chạy được <b>offline/local</b> (Aspire/Docker) — Cognito bắt mỗi dev có AWS cred ngày đầu. Tự dựng OIDC = khoe năng lực thật.</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card" style="border-color:var(--accent)">
+          <h3>Federation-ready</h3>
+          <p class="muted">Gateway Kong validate JWT qua <b>authority/JWKS cấu hình được</b>. Lên AWS có thể federate Cognito mà <b>không sửa business code</b> — chỉ đổi 1 biến config.</p>
+        </div>
+        <div class="card">
+          <h3>AWS IAM thật dùng ở đâu?</h3>
+          <p class="muted">IAM Role cho EKS/ECS (IRSA) · quyền Execution ghi <b>S3</b> (thay MinIO ở prod) · <b>Secrets Manager</b> giữ secret.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4d · Chia việc + 3 pha -->
+  <section class="slide">
+    <div class="tag">Chia việc</div>
+    <h2>4-5 dev · ai làm gì · 3 pha</h2>
+    <div class="cols">
+      <div class="col">
+        <table style="font-size:.98rem">
+          <thead><tr><th>Dev</th><th>Sở hữu</th></tr></thead>
+          <tbody>
+            <tr><td><b>Lead</b></td><td>Kong + <b>Identity</b> + Workspace</td></tr>
+            <tr><td>Dev B</td><td><b>TestArtifact</b></td></tr>
+            <tr><td>Dev C</td><td><b>AI Generation</b></td></tr>
+            <tr><td>Dev D</td><td><b>Execution</b> (+MinIO)</td></tr>
+            <tr><td>Dev E</td><td>Integration + Notification</td></tr>
+          </tbody>
+        </table>
+        <p class="note">Skeleton đã commit <b>dev JWT key</b> → build+test CRUD <b>không cần đợi</b> Identity live.</p>
+      </div>
+      <div class="col">
+        <div class="card"><h3>Pha 0 · song song, không block</h3><p class="muted">Mỗi owner đọc Authoring mẫu → DBML entity + EF migration + CRUD slice, test bằng dev JWT key.</p></div>
+        <div class="card"><h3>Pha 1 · Identity live</h3><p class="muted">Token thật. Workspace emit <code>MembershipChanged</code>.</p></div>
+        <div class="card"><h3>Pha 2 · wire event</h3><p class="muted">Outbox/consumer giữa service — event-driven thật chạy.</p></div>
+        <div class="card"><h3>Pha 3 · phần phụ</h3><p class="muted">Integration + Notification bản tối giản.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4e · Luồng xương sống -->
+  <section class="slide">
+    <div class="tag">Trái tim hệ thống</div>
+    <h2>Luồng "Generate test case" end-to-end</h2>
+    <p class="muted" style="margin-bottom:.6rem">Một luồng chạm mọi pattern: gRPC · Saga · Outbox · CQRS · Idempotency · SignalR · read-model.</p>
+    <ul style="gap:.45rem">
+      <li><span class="big-num">1</span><b>Authoring</b>: user viết story → bấm Generate.</li>
+      <li><span class="big-num">2</span><b>AI Gen</b>: tạo job, trả <code>202 + jobId</code> ngay; client theo dõi qua <b>Redis/SignalR</b>.</li>
+      <li><span class="big-num">3</span><b>AI Gen → Authoring</b>: <b>gRPC</b> lấy nội dung story (sync vì cần ngay).</li>
+      <li><span class="big-num">4</span><b>AI Gen → LLM router</b>: OpenAI/Gemini (fallback + circuit breaker).</li>
+      <li><span class="big-num">5</span><b>AI Gen</b>: 1 transaction → job=COMPLETED + ghi <code>TestCasesGenerated</code> vào <b>Outbox</b> (giải dual-write).</li>
+      <li><span class="big-num">6</span><b>TestArtifact</b>: consume → lưu test case <b>idempotent</b> (<code>processed_messages</code>) → emit <code>TestCasesSaved</code>.</li>
+      <li><span class="big-num">7</span>Song song: <b>Authoring</b> cập nhật story status · <b>Integration</b> đẩy Jira nếu có link.</li>
+      <li><span class="big-num">8</span><b>Execution</b>: chạy Playwright → artifact (MinIO/S3) → <code>TestRunCompleted</code> → <b>Notification</b> báo owner.</li>
+    </ul>
+  </section>
+
+  <!-- 4f · Tổng quan 6 luồng + ma trận -->
+  <section class="slide">
+    <div class="tag">Luồng nghiệp vụ</div>
+    <h2>6 luồng · service nào nhúng vào đâu</h2>
+    <table style="font-size:.95rem">
+      <thead><tr><th>Service</th><th>A·Login</th><th>B·Invite</th><th>C·Story/Jira</th><th>D·Generate</th><th>E·Execute</th><th>F·Notify</th></tr></thead>
+      <tbody>
+        <tr><td>Identity</td><td>⭐</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Workspace</td><td>✓</td><td>⭐</td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>Authoring</td><td></td><td></td><td>⭐</td><td>✓ gRPC</td><td></td><td></td></tr>
+        <tr><td>TestArtifact</td><td></td><td></td><td>✓</td><td>✓</td><td>⭐</td><td></td></tr>
+        <tr><td>AI Generation</td><td></td><td></td><td></td><td>⭐</td><td></td><td></td></tr>
+        <tr><td>Execution</td><td></td><td></td><td></td><td></td><td>⭐</td><td></td></tr>
+        <tr><td>Integration</td><td></td><td></td><td>✓</td><td>✓</td><td>defect</td><td></td></tr>
+        <tr><td>Notification</td><td></td><td>✓</td><td></td><td></td><td>✓</td><td>⭐</td></tr>
+      </tbody>
+    </table>
+    <p class="note">⭐ chủ đạo · ✓ tham gia. Chi tiết + sequence diagram: <code>docs/service-flows-explainer.md</code>.</p>
+  </section>
+
+  <!-- 4g · Luồng A + B -->
+  <section class="slide">
+    <div class="tag">Luồng A · B</div>
+    <h2>Đăng nhập &amp; Mời thành viên</h2>
+    <div class="cols">
+      <div class="col">
+        <div class="card">
+          <h3>A · Đăng ký / đăng nhập</h3>
+          <p class="muted"><b>Identity</b> tạo user, hash Argon2id, phát RS256 JWT (OpenIddict). Phát <code>UserRegistered</code> → <b>Workspace</b> seed profile. Kong + mọi service validate JWT qua JWKS.</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card">
+          <h3>B · Mời thành viên (Saga)</h3>
+          <p class="muted"><b>Workspace</b>: <code>Pending → AwaitingResponse → Accepted</code> (hoặc <code>Expired</code> sau 7 ngày → bù trừ: hủy + báo mail). Token lưu <b>hash</b>. Phát <code>MembershipChanged</code> → <b>Notification</b> báo người mời.</p>
+        </div>
+      </div>
+    </div>
+    <p class="note">Pattern: Outbox · idempotent consumer · Saga + compensation.</p>
+  </section>
+
+  <!-- 4h · Luồng C -->
+  <section class="slide">
+    <div class="tag">Luồng C</div>
+    <h2>Viết story &amp; import từ Jira (ACL)</h2>
+    <div class="flow">
+      <span class="node hl">Authoring</span><span class="arrow">→</span>
+      <span class="node">UserStoryCreated</span><span class="arrow">→</span>
+      <span class="node">TestArtifact (placeholder)</span>
+      <span class="node">Integration (link Jira)</span>
+    </div>
+    <div class="flow" style="margin-top:.8rem">
+      <span class="node">Jira webhook</span><span class="arrow">→</span>
+      <span class="node hl">Integration (ACL)</span><span class="arrow">→</span>
+      <span class="node">dịch payload sạch</span><span class="arrow">→</span>
+      <span class="node">Authoring (external_ref)</span>
+    </div>
+    <p class="note"><b>Điểm vàng:</b> Authoring KHÔNG bao giờ biết cấu trúc Jira — Integration (ACL) dịch sạch trước. Đổi provider khác chỉ sửa Integration.</p>
+  </section>
+
+  <!-- 4i · Luồng E -->
+  <section class="slide">
+    <div class="tag">Luồng E</div>
+    <h2>Thực thi test tự động (Playwright)</h2>
+    <div class="flow">
+      <span class="node">TestArtifact</span><span class="arrow">→</span>
+      <span class="node">TestRunRequested</span><span class="arrow">→</span>
+      <span class="node hl">Execution</span><span class="arrow">→</span>
+      <span class="node">MinIO/S3 (artifact)</span><span class="arrow">→</span>
+      <span class="node">TestRunCompleted</span><span class="arrow">→</span>
+      <span class="node">Notification</span>
+    </div>
+    <ul style="margin-top:1.2rem;gap:.5rem">
+      <li>Browser chạy trong <b>container cô lập</b> (giới hạn CPU/RAM/timeout) — bảo mật bắt buộc.</li>
+      <li>DB chỉ lưu <b>đường dẫn</b> artifact; file (screenshot/video/trace) ở object storage.</li>
+      <li>Case FAIL → tạo <code>defect</code>, có thể đẩy Jira — khép kín vòng QA.</li>
+    </ul>
+  </section>
+
+  <!-- 4j · Luồng F + chốt -->
+  <section class="slide">
+    <div class="tag">Luồng F · chốt</div>
+    <h2>Thông báo &amp; 5 câu chốt khi trình bày</h2>
+    <div class="card">
+      <h3>F · Notification (fan-out)</h3>
+      <p class="muted">Consume <code>TestRunCompleted</code> / <code>MembershipChanged</code> → đọc <code>notification_preferences</code> → lưu Mongo → gửi in-app/email. Pure consumer, làm sau cùng.</p>
+    </div>
+    <ul style="margin-top:.8rem;gap:.45rem">
+      <li>Microservice = độc lập lúc <b>deploy</b>, không phải nhiều repo.</li>
+      <li>Mỗi service 1 DB, không đọc chéo → cần data người khác thì dùng <b>snapshot</b>.</li>
+      <li><b>Outbox + processed_message</b> khắp nơi = nhất quán không cần distributed transaction.</li>
+      <li><b>gRPC hiếm</b>, event là mặc định.</li>
+      <li><b>Eventual consistency</b>: trễ nhẹ, đổi lại chịu lỗi tốt + scale độc lập.</li>
+    </ul>
+  </section>
+
+  <!-- 4k · State: Saga mời thành viên -->
+  <section class="slide">
+    <div class="tag">Vòng đời · Saga</div>
+    <h2>State: Saga mời thành viên</h2>
+    <div class="flow" style="font-size:1.15rem">
+      <span class="node">Pending</span><span class="arrow">→</span>
+      <span class="node">AwaitingResponse</span><span class="arrow">→</span>
+      <span class="node" style="border-color:var(--accent2);box-shadow:0 0 0 1px var(--accent2)">Accepted ✅</span>
+    </div>
+    <p class="muted" style="margin:.6rem 0 .2rem">Từ <b>AwaitingResponse</b> còn 3 nhánh kết thúc khác:</p>
+    <div class="flow" style="font-size:1.05rem">
+      <span class="arrow">↳</span>
+      <span class="node" style="border-color:var(--warn)">Expired (quá 7 ngày)</span>
+      <span class="node" style="border-color:var(--red)">Declined</span>
+      <span class="node" style="border-color:var(--red)">Revoked</span>
+    </div>
+    <div class="grid2" style="margin-top:1.4rem">
+      <div class="card"><h3>Token an toàn</h3><p class="muted">Lưu <b>hash</b>; accept thì hash lại để đối chiếu — rò DB cũng không dùng được token.</p></div>
+      <div class="card"><h3>Expired = bù trừ tự động</h3><p class="muted">Saga timeout 7 ngày tự hủy invitation + gửi mail báo hết hạn. Không thao tác tay.</p></div>
+    </div>
+    <p class="note">Chỉ <b>Accepted</b> mới tạo <code>project_member</code> + phát <code>MembershipChanged</code> lần 2 (để các service cập nhật snapshot).</p>
+  </section>
+
+  <!-- 4l · State: generation_job -->
+  <section class="slide">
+    <div class="tag">Vòng đời · Job</div>
+    <h2>State: <code>generation_job</code> (AI Gen)</h2>
+    <div class="flow" style="font-size:1.1rem">
+      <span class="node">PENDING</span><span class="arrow">→</span>
+      <span class="node">FETCHING_STORY</span><span class="arrow">→</span>
+      <span class="node hl">GENERATING</span><span class="arrow">→</span>
+      <span class="node">PERSISTING</span><span class="arrow">→</span>
+      <span class="node" style="border-color:var(--accent2);box-shadow:0 0 0 1px var(--accent2)">COMPLETED ✅</span>
+    </div>
+    <div class="flow" style="font-size:1rem;margin-top:.7rem">
+      <span class="muted" style="margin-right:.3rem">Trong GENERATING (router LLM):</span>
+      <span class="node">Source 1</span><span class="arrow">→ lỗi/timeout →</span>
+      <span class="node">Source 2</span><span class="arrow">↛ cả 2 lỗi →</span>
+      <span class="node" style="border-color:var(--red)">FAILED ❌</span>
+    </div>
+    <ul style="margin-top:1.2rem;gap:.45rem">
+      <li><b>Client theo dõi qua Redis/SignalR</b>: PENDING→GENERATING→COMPLETED realtime, không refresh.</li>
+      <li><b>3 mức lỗi khác nhau:</b> lấy story lỗi (chưa side-effect → FAILED gọn) · LLM lỗi (fallback nguồn 2) · lưu TestArtifact lỗi (redeliver + idempotent tự lành).</li>
+      <li><b>COMPLETED</b> chỉ đạt khi Outbox đã ghi cùng transaction → không bao giờ "job xong mà event mất".</li>
+    </ul>
+  </section>
+
   <!-- 5 -->
   <section class="slide">
     <div class="tag">Trạng thái</div>
@@ -163,7 +397,7 @@
     <div class="cols">
       <div class="col">
         <ul>
-          <li><code>gateway/</code> — YARP reverse proxy + JWT</li>
+          <li><code>gateway/</code> — Kong DB-less (routes + JWT/rate-limit/CORS qua <code>kong.yml</code>) · lead handle</li>
           <li><code>services/&lt;name&gt;/</code> — từng service (Api/Domain/Infrastructure/Contracts/Tests)</li>
           <li><code>building-blocks/</code> — Result, BaseEntity, MediatR behaviors, Outbox, EF conventions</li>
           <li><code>aspire/</code> — AppHost (điều phối) + ServiceDefaults (OTel, health)</li>
