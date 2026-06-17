@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuraEx Backend — Onboarding</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --border:#30363d; --text:#e6edf3;
+    --muted:#8b949e; --accent:#7c83ff; --accent2:#3fb950; --warn:#d29922;
+    --red:#f85149; --blue:#58a6ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden;
+  }
+  #deck{height:100vh;width:100vw;position:relative}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    padding:6vh 8vw;animation:fade .35s ease;
+  }
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  h1{font-size:3.2rem;line-height:1.1;margin-bottom:1rem;letter-spacing:-1px}
+  h2{font-size:2.1rem;margin-bottom:1.6rem;color:#fff;display:flex;align-items:center;gap:.6rem}
+  h2::before{content:"";width:10px;height:34px;background:var(--accent);border-radius:3px;display:inline-block}
+  h3{font-size:1.25rem;color:var(--blue);margin:1rem 0 .5rem}
+  p,li{font-size:1.25rem;line-height:1.65;color:var(--text)}
+  .muted{color:var(--muted)}
+  ul{list-style:none;display:flex;flex-direction:column;gap:.7rem}
+  li{padding-left:1.6rem;position:relative}
+  li::before{content:"▸";position:absolute;left:0;color:var(--accent);font-weight:bold}
+  .lead{font-size:1.5rem;color:var(--muted);max-width:60ch}
+  .cols{display:flex;gap:2.5rem;margin-top:1rem}
+  .col{flex:1}
+  .card{
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:1.3rem 1.5rem;margin-bottom:1rem;
+  }
+  .pill{display:inline-block;padding:.2rem .7rem;border-radius:20px;font-size:.95rem;font-weight:600}
+  .pill.green{background:rgba(63,185,80,.15);color:var(--accent2)}
+  .pill.yellow{background:rgba(210,153,34,.15);color:var(--warn)}
+  .pill.red{background:rgba(248,81,73,.15);color:var(--red)}
+  table{width:100%;border-collapse:collapse;margin-top:1rem;font-size:1.05rem}
+  th,td{text-align:left;padding:.6rem .8rem;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:600;font-size:.95rem;text-transform:uppercase;letter-spacing:.5px}
+  td code,p code,li code{background:#1f2630;padding:.12rem .45rem;border-radius:5px;font-size:.92em;color:#a5d6ff;font-family:"SF Mono",Menlo,monospace}
+  .flow{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:1.5rem;font-size:1.1rem}
+  .node{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:.6rem 1rem}
+  .node.hl{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .arrow{color:var(--muted);font-size:1.4rem}
+  .big-num{font-size:1.1rem;color:var(--accent);font-weight:700;margin-right:.4rem}
+  .center{align-items:center;justify-content:center;text-align:center}
+  .tag{font-size:1rem;color:var(--accent);letter-spacing:3px;text-transform:uppercase;margin-bottom:1.5rem;font-weight:600}
+  footer{
+    position:fixed;bottom:0;left:0;right:0;height:6px;background:var(--panel);
+  }
+  #bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--blue));width:0;transition:width .3s}
+  #counter{position:fixed;bottom:18px;right:24px;color:var(--muted);font-size:.95rem;font-variant-numeric:tabular-nums}
+  #hint{position:fixed;bottom:18px;left:24px;color:var(--muted);font-size:.9rem}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem 2.5rem;margin-top:1rem}
+  .kbd{background:#1f2630;border:1px solid var(--border);border-radius:5px;padding:.1rem .5rem;font-size:.85rem;font-family:monospace}
+  .note{border-left:3px solid var(--accent);padding:.4rem 0 .4rem 1rem;color:var(--muted);font-size:1.1rem;margin-top:1rem}
+  .logo{width:64px;height:64px;border-radius:14px;background:linear-gradient(135deg,var(--accent),#4b50c4);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;margin-bottom:1.5rem}
+</style>
+</head>
+<body>
+<div id="deck">
+
+  <!-- 1 -->
+  <section class="slide active center">
+    <div class="logo">Q</div>
+    <h1>QuraEx Backend</h1>
+    <p class="lead">Onboarding cho thành viên mới<br>Kiến trúc · Trạng thái · Cách bắt đầu đóng góp</p>
+    <p class="muted" style="margin-top:2rem">.NET 10 · Microservices · PostgreSQL · RabbitMQ · .NET Aspire</p>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide">
+    <div class="tag">Tổng quan</div>
+    <h2>QuraEx Backend là gì?</h2>
+    <p class="lead" style="margin-bottom:1.5rem">Backend microservices cho nền tảng QuraEx — quản lý user story, test artifact, sinh test bằng AI, thực thi và tích hợp.</p>
+    <div class="cols">
+      <div class="col">
+        <div class="card"><h3>Nền tảng</h3>.NET 10 · Vertical Slice + CQRS/MediatR</div>
+        <div class="card"><h3>Giao tiếp</h3>Event qua MassTransit / RabbitMQ</div>
+      </div>
+      <div class="col">
+        <div class="card"><h3>Cổng vào</h3>YARP Gateway — định tuyến + xác thực JWT</div>
+        <div class="card"><h3>Dữ liệu & dev</h3>PostgreSQL (1 DB/service), Redis, điều phối local bằng .NET Aspire</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide">
+    <div class="tag">Kiến trúc</div>
+    <h2>8 service theo nghiệp vụ</h2>
+    <p>Client → <b>Gateway</b> (YARP) → từng service độc lập, mỗi service có DB riêng và phát/nhận event qua RabbitMQ.</p>
+    <div class="flow">
+      <span class="node">Client / FE</span><span class="arrow">→</span>
+      <span class="node hl">YARP Gateway</span><span class="arrow">→</span>
+      <span class="node">Identity</span>
+      <span class="node">Workspace</span>
+      <span class="node hl">Authoring</span>
+      <span class="node">Test-Artifact</span>
+    </div>
+    <div class="flow" style="margin-top:.6rem;margin-left:0">
+      <span class="node">AI-Generation</span>
+      <span class="node">Execution</span>
+      <span class="node">Integration</span>
+      <span class="node">Notification</span>
+      <span class="arrow">⇄</span><span class="node hl">RabbitMQ (events)</span>
+    </div>
+    <p class="note">Mỗi service = 4 lớp: <code>Api</code> · <code>Domain</code> · <code>Infrastructure</code> · <code>Contracts</code> (event công khai) + bộ <code>Tests</code>.</p>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide">
+    <div class="tag">Quyết định kiến trúc</div>
+    <h2>3 lựa chọn cần hiểu (hay bị hỏi)</h2>
+    <div class="card">
+      <h3>① Monorepo — KHÔNG tách mỗi service 1 repo</h3>
+      <p class="muted">Microservice = độc lập lúc <b>deploy/runtime</b>, không phải số lượng repo. Tách repo lúc này = gánh versioning, CI ×8, mất Aspire F5 — chưa có lợi ích khi đội nhỏ.</p>
+    </div>
+    <div class="card">
+      <h3>② GitHub Organization <code>QuraEx</code></h3>
+      <p class="muted">Chứa repo BE (và FE sắp dựng). Cho namespace package, teams/RBAC, secret dùng chung — <b>độc lập</b> với chuyện tách repo.</p>
+    </div>
+    <div class="card">
+      <h3>③ Database-per-service + Outbox pattern</h3>
+      <p class="muted">Mỗi service 1 DB riêng, không share. Nhất quán dữ liệu qua event + transactional outbox, không cần distributed transaction.</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide">
+    <div class="tag">Trạng thái</div>
+    <h2>Service đã build tới đâu?</h2>
+    <table>
+      <thead><tr><th>Service</th><th>API</th><th>DB nghiệp vụ</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <tr><td><b>Authoring</b></td><td>✅</td><td>✅ user_story, criteria, rule</td><td><span class="pill green">Mẫu hoàn chỉnh</span></td></tr>
+        <tr><td>Identity</td><td>🟡</td><td>🟡 mới có outbox</td><td><span class="pill yellow">Khung + plumbing</span></td></tr>
+        <tr><td>Workspace</td><td>🟡</td><td>🟡 mới có outbox</td><td><span class="pill yellow">Khung + plumbing</span></td></tr>
+        <tr><td>AI-Generation</td><td>❌</td><td>❌</td><td><span class="pill red">Skeleton</span></td></tr>
+        <tr><td>Execution</td><td>❌</td><td>❌</td><td><span class="pill red">Skeleton</span></td></tr>
+        <tr><td>Integration</td><td>❌</td><td>❌</td><td><span class="pill red">Skeleton</span></td></tr>
+        <tr><td>Notification</td><td>❌</td><td>❌</td><td><span class="pill red">Skeleton</span></td></tr>
+        <tr><td>Test-Artifact</td><td>❌</td><td>❌</td><td><span class="pill red">Skeleton</span></td></tr>
+      </tbody>
+    </table>
+    <p class="note">Thiết kế DB đủ cho cả 8 service trong <code>docs/database/quraex.dbml</code> (~50 bảng). <b>Authoring</b> là service mẫu — mọi service khác build theo nó.</p>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide">
+    <div class="tag">Cấu trúc repo</div>
+    <h2>Đường đi trong codebase</h2>
+    <div class="cols">
+      <div class="col">
+        <ul>
+          <li><code>gateway/</code> — YARP reverse proxy + JWT</li>
+          <li><code>services/&lt;name&gt;/</code> — từng service (Api/Domain/Infrastructure/Contracts/Tests)</li>
+          <li><code>building-blocks/</code> — Result, BaseEntity, MediatR behaviors, Outbox, EF conventions</li>
+          <li><code>aspire/</code> — AppHost (điều phối) + ServiceDefaults (OTel, health)</li>
+        </ul>
+      </div>
+      <div class="col">
+        <ul>
+          <li><code>deploy/</code> — compose prod, runbook, droplet setup</li>
+          <li><code>docs/</code> — kiến trúc, SRS, DB conventions, DBML, TASKS</li>
+          <li><code>docker-compose*.yml</code> — infra + app services</li>
+          <li><code>QuraEx.slnx</code> · <code>Directory.Packages.props</code> — solution + quản lý package tập trung</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide">
+    <div class="tag">Bắt đầu</div>
+    <h2>Chạy local trong 4 bước</h2>
+    <div class="card">
+      <h3>1 · Clone</h3>
+      <p><code>git clone git@github.com:QuraEx/QuraEx-BE.git &amp;&amp; cd QuraEx-BE/quraexv2</code></p>
+    </div>
+    <div class="card">
+      <h3>2 · Restore</h3>
+      <p><code>dotnet tool restore &amp;&amp; dotnet restore QuraEx.slnx</code></p>
+    </div>
+    <div class="card">
+      <h3>3 · Chạy (chọn 1)</h3>
+      <p><b>Aspire</b> (dev hằng ngày, hot reload, debug):<br><code>dotnet run --project aspire/QuraEx.AppHost/QuraEx.AppHost.csproj</code></p>
+      <p style="margin-top:.6rem"><b>Docker full stack</b> (không cần SDK): <code>make up</code></p>
+    </div>
+    <div class="card">
+      <h3>4 · Verify</h3>
+      <p><code>curl &lt;gateway&gt;/api/authoring/health</code> → <b>200 OK</b></p>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide">
+    <div class="tag">Đóng góp</div>
+    <h2>Quy trình nhận việc</h2>
+    <ul>
+      <li><span class="big-num">1</span>Đọc <code>CONTRIBUTING.md</code> — quy ước commit, quy trình 7 bước DB, cách scaffold service.</li>
+      <li><span class="big-num">2</span><b>Claim 1 service</b> trong <code>docs/TASKS.md</code> (có owner, thứ tự build, event contract).</li>
+      <li><span class="big-num">3</span>Build theo <b>mẫu Authoring</b> + tuân <code>docs/database/conventions.md</code>.</li>
+      <li><span class="big-num">4</span>Tuân branch flow & Conventional Commits.</li>
+    </ul>
+    <h3 style="margin-top:1.5rem">Branch flow</h3>
+    <div class="flow">
+      <span class="node">feature/&lt;name&gt;</span><span class="arrow">→</span>
+      <span class="node">PR</span><span class="arrow">→</span>
+      <span class="node">dev</span><span class="arrow">→</span>
+      <span class="node">release</span><span class="arrow">→</span>
+      <span class="node hl">main</span>
+    </div>
+    <p class="note"><code>main</code> được bảo vệ: phải xanh check <b>CI Gate</b> (build + test + scan vuln + CodeQL) mới merge được.</p>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide">
+    <div class="tag">Roadmap</div>
+    <h2>Thứ tự build theo dependency</h2>
+    <div class="flow" style="font-size:1.2rem">
+      <span class="node hl">Identity</span><span class="arrow">→</span>
+      <span class="node">Workspace</span><span class="arrow">→</span>
+      <span class="node">Test-Artifact</span><span class="arrow">→</span>
+      <span class="node">AI-Gen · Execution · Integration · Notification</span>
+    </div>
+    <div class="grid2" style="margin-top:2rem">
+      <div class="card"><h3>Vì sao Identity trước?</h3><p class="muted">Unblock tất cả — mọi service cần user/auth.</p></div>
+      <div class="card"><h3>Authoring đã xong</h3><p class="muted">Làm chuẩn tham chiếu cho các service còn lại.</p></div>
+      <div class="card"><h3>Việc kỹ thuật tồn đọng</h3><p class="muted">Fix CI đỏ — vuln <code>MessagePack</code> transitive (không liên quan nghiệp vụ).</p></div>
+      <div class="card"><h3>Đã hoàn tất</h3><p class="muted">Chuyển repo về Org <code>QuraEx</code>, secret + branch protection còn nguyên.</p></div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide center">
+    <h2 style="justify-content:center">Tài liệu cần đọc</h2>
+    <div class="card" style="max-width:60ch;text-align:left;margin-top:1rem">
+      <ul>
+        <li><code>README.md</code> — chạy stack local (Aspire / Docker)</li>
+        <li><code>CONTRIBUTING.md</code> — commit/PR, 7 bước DB, scaffold service</li>
+        <li><code>docs/TASKS.md</code> — chọn service để build</li>
+        <li><code>docs/database/conventions.md</code> — quy tắc DB chung</li>
+        <li><code>docs/database/quraex.dbml</code> — schema tổng (source of truth)</li>
+        <li><code>docs/QuraEx_Architecture.md</code> — thiết kế hệ thống</li>
+      </ul>
+    </div>
+    <p style="margin-top:2rem;font-size:1.4rem">Bắt đầu: README → CONTRIBUTING → claim service trong TASKS.md 🚀</p>
+  </section>
+
+</div>
+
+<footer><div id="bar"></div></footer>
+<div id="counter"></div>
+<div id="hint"><span class="kbd">←</span> <span class="kbd">→</span> chuyển slide · <span class="kbd">F</span> fullscreen</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  let i=0;
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    document.getElementById('bar').style.width=((i+1)/slides.length*100)+'%';
+    document.getElementById('counter').textContent=(i+1)+' / '+slides.length;
+  }
+  document.addEventListener('keydown',e=>{
+    if(['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)){show(i+1);e.preventDefault();}
+    else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){show(i-1);e.preventDefault();}
+    else if(e.key==='Home'){show(0);}
+    else if(e.key==='End'){show(slides.length-1);}
+    else if(e.key.toLowerCase()==='f'){
+      if(!document.fullscreenElement)document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  });
+  let sx=0;
+  document.addEventListener('touchstart',e=>sx=e.touches[0].clientX);
+  document.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-sx;
+    if(Math.abs(dx)>50)show(dx<0?i+1:i-1);
+  });
+  show(0);
+</script>
+</body>
+</html>
