@@ -14,11 +14,21 @@
 |---|---------|-------|-----------|--------|----------------|----------------|
 | 1 | [Identity](#1-identity) | @bavanchun | — (unblocks all) | — | `UserRegistered`, `UserUpdated` | — |
 | 2 | [Workspace](#2-workspace) | @bavanchun | Identity | — | `MembershipChanged`, `ProjectCreated` | `UserRegistered` |
-| 3 | [TestArtifact](#3-testartifact) | — | Authoring, Workspace | — | `TestCasesSaved`, `TestRunRequested` | `UserStoryCreated`, `MembershipChanged` |
-| 4 | [AI Generation](#4-ai-generation) | — | Authoring, TestArtifact | — | `TestCasesGenerated` | `TestRunRequested` |
-| 5 | [Execution](#5-execution) | — | TestArtifact, AI Generation | +MinIO | `TestRunCompleted` | `TestRunRequested`, `TestCasesGenerated` |
-| 6 | [Integration (Jira)](#6-integration-jira) | — | Workspace, Authoring | — | `JiraIssueLinked` | `UserStoryCreated`, `ProjectCreated` |
-| 7 | [Notification](#7-notification) | — | Identity, Workspace | +MongoDB | — | `TestRunCompleted`, `MembershipChanged` |
+| 3 | [TestArtifact](#3-testartifact) | Dev B | Authoring, Workspace | — | `TestCasesSaved`, `TestRunRequested` | `UserStoryCreated`, `MembershipChanged` |
+| 4 | [AI Generation](#4-ai-generation) | Dev C | Authoring, TestArtifact | — | `TestCasesGenerated` | `TestRunRequested` |
+| 5 | [Execution](#5-execution) | Dev D | TestArtifact, AI Generation | +MinIO | `TestRunCompleted` | `TestRunRequested`, `TestCasesGenerated` |
+| 6 | [Integration (Jira)](#6-integration-jira) | Dev E | Workspace, Authoring | — | `JiraIssueLinked` | `UserStoryCreated`, `ProjectCreated` |
+| 7 | [Notification](#7-notification) | Dev E | Identity, Workspace | +MongoDB | — | `TestRunCompleted`, `MembershipChanged` |
+
+> **Owners là placeholder** (Dev B–E) — lead điền tên thật khi chia việc. Integration + Notification gộp 1 owner vì cả hai chỉ subscribe event, làm sau cùng / bản tối giản.
+>
+> **3 pha chống block nhau** (chi tiết: `plans/260617-team-onboarding-architecture-decisions/brainstorm-summary.md`):
+> - **Pha 0 (song song, không block):** skeleton đã commit *dev JWT public key* → mỗi owner làm DBML entity + EF migration + CRUD slice (theo mẫu Authoring), test ngay mà không cần đợi Identity live.
+> - **Pha 1:** Identity live (OpenIddict, federation-ready cho AWS Cognito sau) → token thật.
+> - **Pha 2:** wire Outbox/consumer giữa các service.
+> - **Pha 3:** Integration + Notification.
+>
+> **Gateway = Kong DB-less** (lead handle, team không đụng). **Cloud đích = AWS** (EKS + RDS + S3 + Secrets Manager); S3/IAM là thiết kế giấy, code local dùng MinIO.
 
 ---
 
