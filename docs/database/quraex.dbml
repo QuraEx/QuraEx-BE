@@ -19,78 +19,22 @@
 //  - outbox_message on every producer; processed_message on every consumer; *_snapshot = read-models.
 
 //======================================================================
-// SERVICE 1 — IDENTITY  (PostgreSQL)  Authentication: ASP.NET Core Identity + OpenIddict (OIDC)
+// SERVICE 1 — IDENTITY  (PostgreSQL)  Auth = AWS Cognito (managed). This service keeps a THIN local profile only.
 //======================================================================
-Table app_user {
-  id uuid [pk, note: 'UUIDv7']
-  email citext [unique, not null, note: 'normalized unique']
-  email_confirmed boolean [not null, default: false]
-  password_hash text [note: 'Argon2id']
+// AWS Cognito owns: registration, login, password, email verification, MFA, social/OAuth
+// sign-in, and OIDC token issuance (JWT). NONE of that is stored here.
+// This service stores only an app-local profile mirrored from Cognito (synced via a Cognito
+// post-confirmation trigger or on first authenticated request) and emits UserRegistered so
+// other services can seed their data. Global roles = Cognito groups (carried as a JWT claim);
+// project/workspace roles live in the Workspace service.
+Table user_profile {
+  id uuid [pk, note: 'Cognito user sub (subject) — the user id used everywhere as a bare UUID']
+  email citext [unique, not null, note: 'mirrored from Cognito; normalized']
   display_name varchar
-  status varchar [not null, note: 'ACTIVE|LOCKED|DISABLED']
-  security_stamp varchar
-  two_factor_enabled boolean [not null, default: false]
-  lockout_end timestamptz
-  access_failed_count int [not null, default: 0]
+  status varchar [not null, note: 'ACTIVE|DISABLED — app-local flag, not Cognito state']
   created_at timestamptz [not null]
   updated_at timestamptz [not null]
-  created_by uuid
-  updated_by uuid
   deleted_at timestamptz [note: 'soft-delete; partial unique on email WHERE deleted_at IS NULL']
-}
-Table role {
-  id uuid [pk]
-  name varchar [unique, not null, note: 'SYSTEM_ADMIN|USER']
-  normalized_name varchar [unique, not null]
-}
-Table user_role {
-  user_id uuid [pk]
-  role_id uuid [pk]
-}
-Table user_login {
-  id uuid [pk]
-  user_id uuid [not null]
-  login_provider varchar [not null, note: 'Google|GitHub']
-  provider_key varchar [not null]
-  provider_display_name varchar
-}
-Table user_mfa {
-  id uuid [pk]
-  user_id uuid [not null]
-  type varchar [not null, note: 'TOTP|EMAIL']
-  secret text [note: 'encrypted']
-  enabled boolean [not null, default: false]
-  created_at timestamptz [not null]
-}
-// OpenIddict EF stores (token server)
-Table openiddict_application {
-  id uuid [pk]
-  client_id varchar [unique, not null]
-  client_secret text [note: 'hashed']
-  display_name varchar
-  permissions text [note: 'json']
-  redirect_uris text [note: 'json']
-}
-Table openiddict_authorization {
-  id uuid [pk]
-  application_id uuid [not null]
-  subject uuid [note: 'app_user id']
-  status varchar
-  scopes text [note: 'json']
-}
-Table openiddict_scope {
-  id uuid [pk]
-  name varchar [unique, not null]
-  resources text [note: 'json']
-}
-Table openiddict_token {
-  id uuid [pk]
-  application_id uuid [not null]
-  authorization_id uuid
-  subject uuid [note: 'app_user id']
-  type varchar [note: 'access|refresh']
-  status varchar
-  expiration timestamptz
 }
 Table identity_outbox_message {
   id uuid [pk]
@@ -99,24 +43,14 @@ Table identity_outbox_message {
   occurred_at timestamptz [not null]
   processed_at timestamptz [note: 'null until published']
 }
-Ref: user_role.user_id > app_user.id
-Ref: user_role.role_id > role.id
-Ref: user_login.user_id > app_user.id
-Ref: user_mfa.user_id > app_user.id
-Ref: openiddict_authorization.application_id > openiddict_application.id
-Ref: openiddict_token.application_id > openiddict_application.id
-Ref: openiddict_token.authorization_id > openiddict_authorization.id
-TableGroup "1 · Identity (PostgreSQL)" {
-  app_user
-  role
-  user_role
-  user_login
-  user_mfa
-  openiddict_application
-  openiddict_authorization
-  openiddict_scope
-  openiddict_token
+Table identity_processed_message {
+  message_id uuid [pk, note: 'idempotency dedup for consumed events']
+  processed_at timestamptz [not null]
+}
+TableGroup "1 · Identity (PostgreSQL — thin profile; auth = AWS Cognito)" {
+  user_profile
   identity_outbox_message
+  identity_processed_message
 }
 
 //======================================================================
@@ -125,7 +59,7 @@ TableGroup "1 · Identity (PostgreSQL)" {
 Table workspace {
   id uuid [pk, note: 'UUIDv7']
   name varchar [not null]
-  owner_user_id uuid [not null, note: 'ref Identity.app_user']
+  owner_user_id uuid [not null, note: 'ref Cognito user sub (= Identity.user_profile.id)']
   type varchar [not null, note: 'PERSONAL|TEAM']
   created_at timestamptz [not null]
   updated_at timestamptz [not null]
@@ -146,14 +80,14 @@ Table project {
 Table workspace_member {
   id uuid [pk]
   workspace_id uuid [not null]
-  user_id uuid [not null, note: 'ref Identity.app_user']
+  user_id uuid [not null, note: 'ref Cognito user sub (= Identity.user_profile.id)']
   role varchar [not null, note: 'OWNER|ADMIN|MEMBER']
   created_at timestamptz [not null]
 }
 Table project_member {
   id uuid [pk]
   project_id uuid [not null]
-  user_id uuid [not null, note: 'ref Identity.app_user']
+  user_id uuid [not null, note: 'ref Cognito user sub (= Identity.user_profile.id)']
   role varchar [not null, note: 'EDITOR|VIEWER']
   created_at timestamptz [not null]
 }
@@ -534,7 +468,7 @@ TableGroup "7 · Integration/Jira (PostgreSQL)" {
 //======================================================================
 Table notifications {
   _id varchar [pk, note: 'ObjectId']
-  userId uuid [not null, note: 'ref Identity.app_user']
+  userId uuid [not null, note: 'ref Cognito user sub (= Identity.user_profile.id)']
   type varchar [not null]
   payload json [note: 'flexible document']
   channel varchar [not null, note: 'IN_APP|EMAIL|PUSH']

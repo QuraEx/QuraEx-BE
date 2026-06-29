@@ -13,7 +13,7 @@ Authoritative DB rules for all 8 services. Source of truth = [`quraex.dbml`](./q
 | Audit | `created_by`/`updated_by` (uuid) on **business aggregates** only — not on infra tables (outbox/processed/snapshot). |
 | Soft-delete | `deleted_at timestamptz NULL`. EF global query filter applied **only to entities implementing `ISoftDeletable`** (opt-in marker — NOT blanket-by-convention). **Infra tables (`*_outbox_message`, `*_processed_message`, `*_snapshot`) are EXCLUDED** (no `deleted_at`) so the outbox relay query keeps no spurious `deleted_at` predicate. ⚠️ **Unique columns MUST use partial unique index** `... WHERE deleted_at IS NULL` (e.g. `email`, `project_key`), declared **per-entity in its `IEntityTypeConfiguration`** (the convention helper cannot infer which columns are unique). |
 | Postgres extensions | Extensions like `citext` are NOT auto-created by EF — declare `HasPostgresExtension("citext")` in the DbContext so migrations emit `CREATE EXTENSION`. |
-| Secrets at rest | Tokens/secrets (`jira_connection.oauth_token`, `user_mfa.secret`, OpenIddict client secrets) use **envelope encryption with a KMS/Key Vault DEK** — the encryption key is NEVER in repo/config; documented rotation. "encrypted" in the schema = this scheme, not an app-config key. |
+| Secrets at rest | Tokens/secrets (e.g. `jira_connection.oauth_token`) use **envelope encryption with a KMS/Key Vault DEK** — the encryption key is NEVER in repo/config; documented rotation. "encrypted" in the schema = this scheme, not an app-config key. (Credentials/MFA secrets are NOT stored here — AWS Cognito owns them.) |
 | Concurrency | `xmin` system column as EF token (`UseXminAsConcurrencyToken()`) — zero extra column. Apply on aggregates with concurrent edits. |
 | Migration history | default `__EFMigrationsHistory` per DB (separate DBs → no clash). |
 
@@ -29,10 +29,11 @@ Authoritative DB rules for all 8 services. Source of truth = [`quraex.dbml`](./q
 - **Execution** → object storage (**MinIO** local) for artifacts; DB stores `storage_path` only.
 - **AI Generation / Integration** → `*_saga_state` table (MassTransit saga persistence).
 
-## 2. IAM model (Identity service)
+## 2. IAM model (AWS Cognito + thin Identity service)
 
-- **ASP.NET Core Identity** = user/credential store (`app_user`, Argon2id hash, 2FA, lockout) + `role`/`user_role` (global roles e.g. `SYSTEM_ADMIN`).
-- **OpenIddict** = OIDC/OAuth2 token server (`openiddict_application/authorization/scope/token`). No hand-rolled refresh-token table.
+- **AWS Cognito (managed)** = authentication: registration, login, password, email verification, MFA, social/OAuth sign-in, and OIDC token issuance (JWT). No credential or token tables in our DB.
+- **Identity service** = thin local layer only: a `user_profile` table mirrored from Cognito (synced via a Cognito post-confirmation trigger or on first authenticated request) + emits `UserRegistered`. The user id used everywhere = Cognito `sub` (bare UUID), no cross-service FK.
+- **JWT validation:** gateway + every service validate the Cognito JWT via JWKS (`https://cognito-idp.<region>.amazonaws.com/<pool-id>`). Global roles = Cognito groups (carried as a JWT claim).
 - Project/workspace authorization lives in **Workspace** service (`workspace_member` OWNER/ADMIN/MEMBER, `project_member` EDITOR/VIEWER), mirrored to other services via `membership_snapshot`.
 
 ## 3. ⭐ Golden flow — add/change a table (every teammate, every service)
